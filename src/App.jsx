@@ -76,6 +76,18 @@ const CSS = `
 .erow select { font:inherit; font-size:12px; padding:4px 5px; border:1px solid var(--lijn);
                border-radius:5px; background:#fff; color:var(--inkt); }
 .erow .cntx { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--grijs); white-space:nowrap; }
+.erow[data-arch="true"] { opacity:.55; }
+.erow .mini-btn { border:1px solid #BFC4E0; background:transparent; color:var(--blauw);
+                  border-radius:5px; padding:3px 8px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+.erow .mini-btn.rood { border-color:#E3B4AA; color:var(--oranjeD); }
+.zoek { width:100%; font:inherit; font-size:13px; padding:6px 9px; border:1px solid var(--lijn);
+        border-radius:6px; background:#fff; margin-bottom:8px; }
+.ledenlijst { max-height:320px; overflow-y:auto; }
+.mergebox { background:#FEF0E5; border:1px dashed var(--oranje); border-radius:6px;
+            padding:8px 10px; margin:4px 0 8px; font-size:12px; color:var(--oranjeD); }
+.mergebox .row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:7px; }
+.mergebox select { font:inherit; font-size:12.5px; padding:4px 6px; border:1px solid var(--lijn);
+                   border-radius:5px; background:#fff; color:var(--inkt); max-width:200px; }
 
 .tabs { display:flex; gap:5px; margin-bottom:8px; }
 .tab { flex:1; border:1px solid var(--lijn); background:var(--wit); border-radius:8px;
@@ -225,6 +237,10 @@ a.btn { text-decoration:none; display:inline-flex; align-items:center; }
 .fout { background:#FEF0E5; border:1px solid var(--oranje); color:var(--oranjeD);
         border-radius:8px; padding:12px 14px; font-size:12.5px; margin-bottom:12px; line-height:1.55; }
 .pill.leeg select { background:var(--oranje); color:#fff; }
+.pill { flex-wrap:wrap; max-width:100%; }
+.pill.invoer { width:100%; border-radius:14px; padding:8px 10px; gap:7px; }
+.pill.invoer input { flex:1 1 150px; min-width:0; max-width:none; border-radius:9px; padding:8px 11px; }
+.pill.invoer .btn { flex:0 0 auto; padding:8px 14px; }
 `;
 
 /* --- datumhulp --------------------------------------------------- */
@@ -366,6 +382,8 @@ export default function App() {
   const [draft, setDraft] = useState({ post: "Bar", start: "19.00", end: "sluit", cap: 2 });
   const [dayDraft, setDayDraft] = useState("");
   const [nieuwe, setNieuwe] = useState(null);
+  const [ledenZoek, setLedenZoek] = useState("");
+  const [merge, setMerge] = useState(null);   // { van, naar }
 
   const say = (m) => { setToast(m); setTimeout(() => setToast(null), 2800); };
 
@@ -591,6 +609,48 @@ export default function App() {
     na("Editie verwijderd");
   };
 
+  /* --- ledenbeheer -------------------------------------------------- */
+
+  const dienstenVan = useCallback(
+    (pid) => assignments.filter(a => a.person_id === pid).length, [assignments]);
+
+  const hernoem = async (p, nieuweNaam) => {
+    const n = nieuweNaam.trim().replace(/\s+/g, " ");
+    if (!n || n === p.naam) return;
+    const { error } = await supabase.from("people").update({ naam: n }).eq("id", p.id);
+    if (error) return say("Die naam bestaat al — gebruik Samenvoegen");
+    await noteer(`hernoemde ${p.naam} naar ${n}`, true);
+    na("Naam aangepast");
+  };
+
+  const archiveer = async (p, aan) => {
+    await supabase.from("people").update({ gearchiveerd: aan }).eq("id", p.id);
+    await noteer(`${aan ? "archiveerde" : "haalde"} ${p.naam}${aan ? "" : " terug uit het archief"}`, true);
+    if (aan && p.id === meId) { localStorage.removeItem("tvveere.persoon"); setMeId(null); }
+    na(aan ? "Gearchiveerd" : "Teruggehaald");
+  };
+
+  const verwijderPersoon = async (p) => {
+    if (dienstenVan(p.id) > 0) return say("Staat nog op diensten — archiveer of voeg samen");
+    if (!window.confirm(`${p.naam} definitief verwijderen?`)) return;
+    await supabase.from("people").delete().eq("id", p.id);
+    await noteer(`verwijderde ${p.naam} uit de ledenlijst`, true);
+    if (p.id === meId) { localStorage.removeItem("tvveere.persoon"); setMeId(null); }
+    na("Verwijderd");
+  };
+
+  const voegSamen = async () => {
+    const van = people.find(p => p.id === merge.van);
+    const naar = people.find(p => p.id === merge.naar);
+    if (!van || !naar || van.id === naar.id) return say("Kies twee verschillende personen");
+    const { error } = await supabase.rpc("voeg_samen", { van: van.id, naar: naar.id });
+    if (error) return say("Samenvoegen mislukt — is de SQL-uitbreiding uitgevoerd?");
+    await noteer(`voegde ${van.naam} samen met ${naar.naam}`, true);
+    if (van.id === meId) { localStorage.setItem("tvveere.persoon", naar.id); setMeId(naar.id); }
+    setMerge(null);
+    na(`${van.naam} is samengevoegd met ${naar.naam}`);
+  };
+
   const maakEditie = async () => {
     const naamE = (nieuwe.naam || "").trim() || "Nieuwe editie";
     const { data: nieuweEditie, error } = await supabase.from("editions")
@@ -693,7 +753,7 @@ export default function App() {
         {fout && <div className="fout">{fout}</div>}
 
         <div className="bar">
-          <div className={`pill${me ? "" : " leeg"}`}>
+          <div className={`pill${naming ? " invoer" : ""}${me ? "" : " leeg"}`}>
             {naming ? (
               <>
                 <input autoFocus value={naam} placeholder="Voor- en achternaam"
@@ -714,7 +774,8 @@ export default function App() {
                     if (p) kies(p);
                   }}>
                   {!me && <option value="">Kies je naam…</option>}
-                  {people.map(p => <option key={p.id} value={p.id}>{p.naam}</option>)}
+                  {people.filter(p => !p.gearchiveerd || p.id === meId)
+                    .map(p => <option key={p.id} value={p.id}>{p.naam}</option>)}
                   <option value="__new__">+ Ik sta er nog niet bij…</option>
                 </select>
               </>
@@ -817,6 +878,66 @@ export default function App() {
             )}
           </div>
         )}
+
+        {admin && (() => {
+          const zoek = norm(ledenZoek);
+          const lijst = people.filter(p => !zoek || norm(p.naam).includes(zoek));
+          return (
+            <div className="panel">
+              <span className="lab">Leden ({people.length})</span>
+              <input className="zoek" placeholder="Zoek een naam…" value={ledenZoek}
+                onChange={e => setLedenZoek(e.target.value)} />
+
+              {merge && (
+                <div className="mergebox">
+                  <b>{people.find(p => p.id === merge.van)?.naam}</b> samenvoegen met een andere
+                  persoon. Alle diensten en dubbelen worden overgezet; de eerste naam verdwijnt.
+                  <div className="row">
+                    <select value={merge.naar}
+                      onChange={e => setMerge({ ...merge, naar: e.target.value })}>
+                      <option value="">Kies de naam die blijft…</option>
+                      {people.filter(p => p.id !== merge.van)
+                        .map(p => <option key={p.id} value={p.id}>{p.naam}</option>)}
+                    </select>
+                    <button className="btn blauw" disabled={!merge.naar} onClick={voegSamen}>
+                      Samenvoegen
+                    </button>
+                    <button className="btn quiet" onClick={() => setMerge(null)}>Annuleren</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="ledenlijst">
+                {lijst.map(p => {
+                  const n = dienstenVan(p.id);
+                  return (
+                    <div className="erow" key={p.id} data-arch={!!p.gearchiveerd}>
+                      <input defaultValue={p.naam} aria-label="Naam"
+                        onBlur={e => hernoem(p, e.target.value)} />
+                      <span className="cntx">{n} {n === 1 ? "dienst" : "diensten"}</span>
+                      <button className="mini-btn"
+                        onClick={() => setMerge({ van: p.id, naar: "" })}>Samenvoegen</button>
+                      <button className="mini-btn" onClick={() => archiveer(p, !p.gearchiveerd)}>
+                        {p.gearchiveerd ? "Terughalen" : "Archiveren"}
+                      </button>
+                      <button className="mini-btn rood" disabled={n > 0}
+                        title={n > 0 ? "Staat nog op diensten" : "Definitief verwijderen"}
+                        onClick={() => verwijderPersoon(p)}>Verwijderen</button>
+                    </div>
+                  );
+                })}
+                {lijst.length === 0 && <p className="hint">Geen naam gevonden.</p>}
+              </div>
+
+              <p className="hint">
+                <b>Hernoemen</b> corrigeert een typefout; de persoon houdt al zijn diensten.
+                <b> Samenvoegen</b> gebruik je bij een dubbele inschrijving.
+                <b> Archiveren</b> haalt iemand uit de keuzelijst maar laat oude roosters intact.
+                <b> Verwijderen</b> kan alleen bij iemand die nergens op staat.
+              </p>
+            </div>
+          );
+        })()}
 
         <nav className="tabs">
           {[["alle", "Alles"], ["todo", `Incompleet (${todo})`], ["mijn", `Mijn diensten (${t.mine})`]]
