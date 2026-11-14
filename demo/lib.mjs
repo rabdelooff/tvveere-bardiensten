@@ -1,11 +1,33 @@
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 const { chromium } = createRequire(import.meta.url)("playwright");
 
 export const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
+const hier = dirname(fileURLToPath(import.meta.url));
+const TRIM = 0.35;   // seconden die aan het begin van de opname worden weggeknipt
 
-export async function opname({ naam, vorm, demo, hash = "", scenario, uit }) {
+/* Voice-over: demo/spraak/<video>.json bevat de zinnen, op volgorde van de titelkaarten en
+   ondertitels. Staat er voor elke zin een fragment in demo/audio/<video>/NN.mp3, dan duurt elke
+   scène zo lang als het fragment en komt het geluid onder de video. Zonder fragmenten wordt de
+   duur geschat en blijft de video stil. */
+function laadSpraak(video) {
+  const pad = resolve(hier, "spraak", `${video}.json`);
+  if (!existsSync(pad)) return [];
+  return JSON.parse(readFileSync(pad, "utf8")).map((tekst, i) => {
+    const audio = resolve(process.env.DEMO_AUDIO || resolve(hier, "audio"), video, `${String(i).padStart(2, "0")}.mp3`);
+    const heeft = existsSync(audio);
+    const duur = heeft
+      ? Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", audio]).toString())
+      : 0.6 + tekst.length / 15;
+    return { tekst, audio: heeft ? audio : null, duur };
+  });
+}
+
+export async function opname({ naam, vorm, demo, hash = "", scenario, uit, spraak: video }) {
+  const zinnen = laadSpraak(video); let zinNr = 0;
   const maat = vorm === "phone" ? { w: 450, h: 800, schaal: 2.4 } : { w: 1280, h: 720, schaal: 1.5 };
   const tmp = `${uit}/raw-${naam}`;
   rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
@@ -40,10 +62,18 @@ export async function opname({ naam, vorm, demo, hash = "", scenario, uit }) {
   const h = {
     page, app, frame, slaap,
     /* ondertitel tonen en lang genoeg laten staan om te lezen */
+    /* volgende zin van de voice-over: onthoudt het tijdstip en geeft de duur in ms terug */
+    zeg() {
+      const z = zinnen[zinNr++];
+      if (!z) return 0;
+      z.start = (Date.now() - t0) / 1000 - TRIM;
+      return z.duur * 1000;
+    },
     async cap(html, extra = 0) {
+      await h.lees();                      // vorige zin eerst laten uitspreken
       await st("cap", html);
       const tekens = html.replace(/<[^>]+>/g, "").length;
-      h._tot = Date.now() + Math.max(2600, 1100 + tekens * 62) + extra;
+      h._tot = Date.now() + Math.max(2600, 1100 + tekens * 62, h.zeg() + 450) + extra;
     },
     async lees() { const rest = (h._tot || 0) - Date.now(); if (rest > 0) await slaap(rest); },
     async wijs(loc, { blok = "center" } = {}) {
@@ -69,8 +99,14 @@ export async function opname({ naam, vorm, demo, hash = "", scenario, uit }) {
       await slaap(350);
     },
     knop: (naam) => app.getByRole("button", { name: naam, exact: true }).first(),
-    titel: (...a) => st("titel", ...a), titelWeg: () => st("titelWeg"),
-    async tussen(html, ms, doe) { await st("curWeg"); await st("skip", html); await slaap(500); if (doe) await doe(); await slaap(ms); await st("skipWeg"); await slaap(500); },
+    async titel(...a) { await h.lees(); await st("titel", ...a); await slaap(500); h._tot = Date.now() + Math.max(3200, h.zeg() + 600); },
+    titelWeg: () => st("titelWeg"),
+    async tussen(html, ms, doe) {
+      await h.lees(); await st("curWeg"); await st("skip", html); await slaap(500);
+      const klaar = Date.now() + Math.max(ms, h.zeg() + 400);
+      if (doe) await doe();
+      await slaap(Math.max(0, klaar - Date.now())); await st("skipWeg"); await slaap(500);
+    },
     curWeg: () => st("curWeg"),
     demo: (fn, arg) => frame().evaluate(fn, arg),
   };
@@ -82,7 +118,19 @@ export async function opname({ naam, vorm, demo, hash = "", scenario, uit }) {
   if (fout) throw fout;
   const webm = readdirSync(tmp).find((f) => f.endsWith(".webm"));
   renameSync(`${tmp}/${webm}`, `${uit}/${naam}.webm`);
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.35", "-i", `${uit}/${naam}.webm`, "-r", "30",
-    "-c:v", "libx264", "-preset", "slow", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", `${uit}/${naam}.mp4`]);
-  console.log(`${naam}: ${duur.toFixed(1)} s`);
+  if (zinNr !== zinnen.length) console.warn(`Let op: ${zinnen.length} zinnen in spraak/${video}.json, ${zinNr} gebruikt`);
+  const metGeluid = zinnen.length > 0 && zinnen.every((z) => z.audio && z.start !== undefined);
+  const stil = metGeluid ? `${uit}/${naam}-stil.mp4` : `${uit}/${naam}.mp4`;
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(TRIM), "-i", `${uit}/${naam}.webm`, "-r", "30",
+    "-c:v", "libx264", "-preset", "slow", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", stil]);
+  writeFileSync(`${uit}/${naam}-spraak.json`, JSON.stringify(zinnen.map(({ tekst, start, duur: d }) => ({ start, duur: d, tekst })), null, 1));
+  if (metGeluid) {
+    const filters = zinnen.map((z, i) => `[${i + 1}:a]adelay=${Math.round(z.start * 1000)}:all=1[a${i}]`);
+    filters.push(`${zinnen.map((_, i) => `[a${i}]`).join("")}amix=inputs=${zinnen.length}:normalize=0,apad[uit]`);
+    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", stil, ...zinnen.flatMap((z) => ["-i", z.audio]),
+      "-filter_complex", filters.join(";"), "-map", "0:v", "-map", "[uit]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+      "-shortest", "-movflags", "+faststart", `${uit}/${naam}.mp4`]);
+    rmSync(stil);
+  }
+  console.log(`${naam}: ${duur.toFixed(1)} s, ${metGeluid ? "met voice-over" : "zonder geluid"}`);
 }

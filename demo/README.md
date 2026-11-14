@@ -27,10 +27,19 @@ Resultaat: `bardiensten-vrijwilliger.mp4` (staand, 1080×1920) en
 | `stage.html` | Het podium: de app in een kader, met ondertitel, cursor en titelkaarten |
 | `lib.mjs` | Hulpfuncties voor de opname (`cap`, `tik`, `typ`, `tussen`) en omzetting naar mp4 |
 | `vrijwilliger.mjs`, `beheerder.mjs` | De scenario's: wat er achtereenvolgens gebeurt en welke tekst erbij staat |
+| `spraak/*.json` | De spreekteksten voor de voice-over |
 
-## Nog te doen: voice-over
+## Voice-over
 
-Plan: per ondertitel (`h.cap(...)`) een spreektekst laten inspreken via ElevenLabs
-(`ELEVENLABS_API_KEY`, domein `api.elevenlabs.io` moet bereikbaar zijn), de wachttijd per scène
-afstemmen op de lengte van het audiofragment, en de fragmenten met `ffmpeg` op de juiste
-tijdstippen onder de video zetten. De ondertitels blijven staan.
+De spreekteksten staan in `spraak/vrijwilliger.json` en `spraak/beheerder.json`: één zin per
+titelkaart, ondertitel of tussenkaart, in de volgorde van het scenario.
+
+Zet de ingesproken fragmenten als `audio/<video>/00.mp3`, `01.mp3`, … in deze map (of wijs met
+`DEMO_AUDIO` een andere map aan). Bij de opname duurt elke scène dan zo lang als het fragment en
+komt het geluid op het juiste moment onder de video. Ontbreken er fragmenten, dan wordt de duur
+geschat en blijft de video stil. Naast elke video komt een `…-spraak.json` met de starttijden.
+
+Stand van zaken: de fragmenten zijn nog niet ingesproken. Inspreken gaat via de
+ElevenLabs-koppeling (stem Leonie, model `eleven_v4`, flow "Bardiensten uitlegvideo's
+voice-over"). De audiobestanden staan op `elevenlabsusercontent.com`; dat domein moet in de
+netwerkinstellingen van de omgeving zijn toegestaan om ze te kunnen downloaden.

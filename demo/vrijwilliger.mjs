@@ -1,12 +1,12 @@
 import { opname, slaap } from "./lib.mjs";
 
 await opname({
-  naam: "bardiensten-vrijwilliger", vorm: "phone", demo: "vrijwilliger", uit: process.argv[2],
+  naam: "bardiensten-vrijwilliger", vorm: "phone", demo: "vrijwilliger", uit: process.argv[2], spraak: "vrijwilliger",
   async scenario(h) {
     const { app } = h;
-    await h.titel("TV Veere · Bardiensten", "Zo werkt de app", "Uitleg voor vrijwilligers\nin anderhalve minuut");
+    await h.titel("TV Veere · Bardiensten", "Zo werkt de app", "Uitleg voor vrijwilligers\nin twee minuten");
     await app.locator("#email").waitFor();
-    await slaap(3200);
+    await h.lees();
     await h.titelWeg();
 
     /* 1. inloggen */
@@ -99,6 +99,7 @@ await opname({
     await h.curWeg();
 
     await h.titel("Samengevat", "Aanmelden. Melding. Klaar.", "1. Meld je aan voor diensten waarop je kunt\n2. Je krijgt bericht als je bent ingedeeld\n3. Kun je niet? Zoek een vervanger in de app");
-    await slaap(6000);
+    await h.lees();
+    await slaap(2500);
   },
 });

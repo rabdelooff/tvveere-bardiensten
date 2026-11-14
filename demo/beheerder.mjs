@@ -1,7 +1,7 @@
 import { opname, slaap } from "./lib.mjs";
 
 await opname({
-  naam: "bardiensten-beheerder", vorm: "desk", demo: "admin", hash: "#/beheer/opzet", uit: process.argv[2],
+  naam: "bardiensten-beheerder", vorm: "desk", demo: "admin", hash: "#/beheer/opzet", uit: process.argv[2], spraak: "beheerder",
   async scenario(h) {
     const { app } = h;
     const tab = (n) => app.locator(".subnav button", { hasText: n }).first();
@@ -11,7 +11,7 @@ await opname({
 
     await h.titel("TV Veere · Bardiensten", "Zo werkt het beheer", "Uitleg voor beheerders: van rooster opzetten tot publiceren");
     await h.knop("Nieuwe editie").waitFor();
-    await slaap(3400);
+    await h.lees();
     await h.titelWeg();
 
     /* 1. opzetten */
@@ -130,6 +130,7 @@ await opname({
     await h.curWeg();
 
     await h.titel("Samengevat", "Opzetten. Indelen. Publiceren.", "Daarna alleen nog: oproepen sturen en vervangers goedkeuren");
-    await slaap(6000);
+    await h.lees();
+    await slaap(2500);
   },
 });
