@@ -3,3 +3,6 @@ dist
 .env
 .env.local
 .DS_Store
+
+# opnames van de uitlegvideo's (demo/README.md)
+demo/uitvoer/
