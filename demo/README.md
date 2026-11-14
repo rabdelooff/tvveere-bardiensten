@@ -39,7 +39,13 @@ Zet de ingesproken fragmenten als `audio/<video>/00.mp3`, `01.mp3`, … in deze 
 komt het geluid op het juiste moment onder de video. Ontbreken er fragmenten, dan wordt de duur
 geschat en blijft de video stil. Naast elke video komt een `…-spraak.json` met de starttijden.
 
-Stand van zaken: de fragmenten zijn nog niet ingesproken. Inspreken gaat via de
-ElevenLabs-koppeling (stem Leonie, model `eleven_v4`, flow "Bardiensten uitlegvideo's
-voice-over"). De audiobestanden staan op `elevenlabsusercontent.com`; dat domein moet in de
-netwerkinstellingen van de omgeving zijn toegestaan om ze te kunnen downloaden.
+Stand van zaken: inspreken gaat via de ElevenLabs-koppeling (stem Leonie, model `eleven_v4`,
+flow "Bardiensten uitlegvideo's voice-over"). `spraak/ingesproken.json` houdt bij welke zinnen
+al zijn ingesproken (zinnummer → generation-id); alleen vrijwilliger 01 is klaar.
+
+Twee dingen om rekening mee te houden:
+
+- Op het gratis ElevenLabs-abonnement kan er maar één opname tegelijk lopen. Start ze dus één
+  voor één; parallelle verzoeken worden geweigerd ("Free generations are busy").
+- De audiobestanden staan op `elevenlabsusercontent.com`; dat domein moet in de
+  netwerkinstellingen van de omgeving zijn toegestaan om ze te kunnen downloaden.
