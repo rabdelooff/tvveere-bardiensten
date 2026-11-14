@@ -41,7 +41,8 @@ geschat en blijft de video stil. Naast elke video komt een `…-spraak.json` met
 
 Stand van zaken: inspreken gaat via de ElevenLabs-koppeling (stem Leonie, model `eleven_v4`,
 flow "Bardiensten uitlegvideo's voice-over"). `spraak/ingesproken.json` houdt bij welke zinnen
-al zijn ingesproken (zinnummer → generation-id); alleen vrijwilliger 01 is klaar.
+al zijn ingesproken (zinnummer → generation-id); klaar: vrijwilliger 00 t/m 04. De generations staan in
+flow `IyyzcxXwNbvTCesk4Nbj`; de mp3's zijn nog niet gedownload (zie hieronder).
 
 Twee dingen om rekening mee te houden:
 
