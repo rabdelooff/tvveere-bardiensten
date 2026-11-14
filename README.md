@@ -1,49 +1,90 @@
 # Bardiensten · TV Veere
 
-Rooster voor kantinediensten per toernooi-editie. React + Vite, data in Supabase,
-geen inlogsysteem: je naam wordt lokaal op je toestel onthouden.
+Rooster voor kantinediensten per toernooi-editie. React + Vite, data en inlog in Supabase.
+
+- **Vrijwilligers** loggen in met een mail (magic link of code), melden zich aan voor diensten
+  en zien hun gepubliceerde rooster.
+- **Beheerders** delen in, publiceren het rooster, keuren vervangers goed en sturen oproepen.
+- De app is te installeren op de telefoon en stuurt pushmeldingen.
 
 ---
 
-## 1. Wat je nodig hebt
+## 1. Hoe het werkt
 
-Uit Supabase → Project Settings → API:
+| Stap | Wie | Wat |
+|---|---|---|
+| Aanmelden | vrijwilliger | "Ik kan deze dienst". Dit is nog géén toewijzing. Anderen zien niet wie zich aanmeldde. |
+| Indelen | beheerder | Kiest per dienst uit de aanmeldingen (of iemand anders). Dit is een concept. |
+| Publiceren | beheerder | Maakt het concept zichtbaar. Iedereen die erbij komt of vervalt, krijgt een melding. |
+| Vervanger zoeken | vrijwilliger | "Ik kan toch niet": alle anderen krijgen bericht. De dienst blijft van jou. |
+| Overnemen | vrijwilliger + beheerder | Iemand biedt zich aan, de beheerder keurt goed. Beiden krijgen bericht. |
+| Oproep | beheerder | Pushmelding voor een dienst die niet vol komt; staat bij iedereen bovenaan. |
+| Herinnering | automatisch | De dag vóór de dienst om 18.00 uur. |
 
-- **Project URL** — `https://xxxx.supabase.co`
-- **anon public key** — begint met `eyJ...`
+**Beheerders.** De allereerste persoon die inlogt, wordt beheerder. Daarna maak je anderen
+beheerder bij *Beheer → Mensen*. Er blijft altijd minstens één beheerder over.
 
-De database moet al zijn ingericht met `supabase_setup.sql`.
+**Registratie is vrij.** Iedereen met een e-mailadres kan inloggen en ziet dan het gepubliceerde
+rooster met namen. Ongewenste accounts blokkeer je bij *Beheer → Mensen*.
 
 ---
 
-## 2. Zonder lokale tools: GitHub + Vercel
+## 2. Eenmalig instellen in Supabase
 
-1. Maak op github.com een nieuwe repository, bijvoorbeeld `tvveere-bardiensten`.
-   Zet hem op **Public** — dan kan een opvolger er ooit bij zonder jouw wachtwoorden.
-2. Kies **uploading an existing file** en sleep alle bestanden uit deze map erin
-   (`src/`, `package.json`, `index.html`, `vite.config.js`, `.gitignore`, `README.md`).
-   Upload `.env` **niet**; die bestaat hier ook niet.
-3. Ga naar vercel.com, log in met GitHub, kies **Add New → Project** en importeer de repo.
-   Vercel herkent Vite vanzelf.
-4. Vóór het deployen: klap **Environment Variables** open en vul in:
+Deze stappen kunnen alleen in het Supabase-dashboard.
 
-   | Name | Value |
+### a. Adres van de app
+*Authentication → URL Configuration*
+- **Site URL**: het adres van de app, bijvoorbeeld `https://bardiensten.tvveere.nl`
+- **Redirect URLs**: hetzelfde adres met `/**` erachter (en eventueel `http://localhost:5173/**`)
+
+### b. Mail versturen via Gmail
+De ingebouwde mail van Supabase verstuurt maar een paar mails per uur. Stel daarom een eigen
+afzender in bij *Authentication → Emails → SMTP Settings*:
+
+1. Zet in het Google-account van de vereniging **tweestapsverificatie** aan.
+2. Maak op <https://myaccount.google.com/apppasswords> een **app-wachtwoord** aan.
+3. Vul in Supabase in:
+
+   | Veld | Waarde |
    |---|---|
-   | `VITE_SUPABASE_URL` | je Project URL |
-   | `VITE_SUPABASE_ANON_KEY` | je anon public key |
-   | `VITE_BEHEER_CODE` | een zelfgekozen code |
+   | Sender email | het Gmail-adres van de vereniging |
+   | Sender name | `Bardiensten TV Veere` |
+   | Host | `smtp.gmail.com` |
+   | Port | `465` |
+   | Username | het Gmail-adres |
+   | Password | het app-wachtwoord (16 tekens) |
 
-5. **Deploy**. Na een minuut staat het op `https://iets.vercel.app`.
+4. Zet daarna bij *Authentication → Rate Limits* het aantal mails per uur op bijvoorbeeld 100.
 
-Elke wijziging die je later in GitHub opslaat, wordt automatisch opnieuw uitgerold.
+Gmail staat ongeveer 500 mails per dag toe; ruim voldoende.
 
-### Eigen adres
-In Vercel → Settings → Domains kun je `bardiensten.tvveere.nl` toevoegen.
-Dat vraagt één CNAME-record bij de partij waar het domein staat.
+### c. Mail in de stijl van TV Veere
+*Authentication → Emails → Templates*. Plak de inhoud van:
+
+| Template | Bestand | Onderwerp |
+|---|---|---|
+| Magic Link | `supabase/email/magic-link.html` | Inloggen bij Bardiensten TV Veere |
+| Confirm signup | `supabase/email/bevestig-aanmelding.html` | Welkom bij Bardiensten TV Veere |
+
+Beide mails bevatten een knop én een code. De code is nodig voor wie de app op een iPhone heeft
+geïnstalleerd: de knop opent daar Safari in plaats van de app.
 
 ---
 
-## 3. Wel lokale tools
+## 3. Uitrollen (GitHub + Vercel)
+
+Vercel heeft twee omgevingsvariabelen nodig (*Settings → Environment Variables*):
+
+| Name | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | Project URL uit Supabase → Project Settings → API |
+| `VITE_SUPABASE_ANON_KEY` | anon public key |
+
+`VITE_BEHEER_CODE` wordt niet meer gebruikt en mag weg. Elke wijziging op de hoofdbranch
+wordt automatisch uitgerold.
+
+Lokaal:
 
 ```bash
 npm install
@@ -51,43 +92,43 @@ cp .env.example .env      # vul je eigen waarden in
 npm run dev               # http://localhost:5173
 ```
 
-Bouwen: `npm run build`, resultaat staat in `dist/`.
-
 ---
 
-## 4. Hoe het werkt
+## 4. Database en push
 
-**Wie ben je.** Bij het eerste bezoek kies je je naam of voeg je jezelf toe. Die keuze
-staat in `localStorage`, dus je hoeft het maar één keer te doen per toestel. Wist iemand
-zijn browsergegevens, dan kiest hij zijn naam opnieuw — er gaat niets verloren.
+- `supabase/migrations/` bevat het volledige schema, de rechten (RLS) en alle functies.
+- `supabase/functions/push/` is de edge function die pushberichten verstuurt. De database
+  roept hem aan zodra er een melding bijkomt (via `pg_net`). De VAPID-sleutels maakt de
+  functie zelf aan en bewaart ze in de tabel `push_config`; die is voor niemand leesbaar.
+- Bij een nieuw Supabase-project: migraties uitvoeren, de functie deployen (zonder JWT-controle)
+  en één rij toevoegen:
 
-**Beheer.** De schakelaar rechtsboven vraagt om `VITE_BEHEER_CODE`. Die code staat in de
-browserbundel en is dus geen echte beveiliging, alleen een drempel tegen per ongeluk
-klikken. Wie het wil, komt eromheen. Het logboek is je vangnet.
+  ```sql
+  insert into public.push_config values
+    ('functie_url', 'https://<project-ref>.supabase.co/functions/v1/push');
+  ```
 
-**Logboek.** Iedere wijziging wordt vastgelegd met naam en tijdstip en is voor alle leden
-zichtbaar. In de database is de tabel append-only: niemand kan regels wijzigen of wissen.
+- De oude namenlijst en indelingen (zonder inlog) staan in het schema `archief`. Niet meer
+  nodig? Dan kan dat schema weg met `drop schema archief cascade;`.
 
-**Capaciteit.** De database bewaakt dat er nooit meer mensen op een dienst staan dan er
-plekken zijn, ook als twee mensen tegelijk op de laatste plek drukken.
-
-**Realtime.** Het bord ververst zichzelf zodra iemand anders iets wijzigt.
+**Pushmeldingen op iPhone** werken alleen als de app op het beginscherm staat (iOS 16.4 of
+nieuwer). De app legt dat stap voor stap uit. Wie geen push heeft, ziet dezelfde berichten in
+de app onder *Meldingen*.
 
 ---
 
 ## 5. Bij een volgende editie
 
-Beheer aan → **Nieuwe editie…** → naam, startdatum, en kies van welke editie je de
-dagen en diensttijden overneemt. De nieuwe editie start als concept en is dus nog niet
-zichtbaar voor leden. Vul hem in, zet hem op **Open**, en zet de vorige op **Gesloten**.
+*Beheer → Rooster opzetten → Nieuwe editie*: geef een naam, kies van welke editie je de dagen
+en diensten overneemt en wat de eerste dag wordt. De nieuwe editie start als **Concept**.
+Zet hem op **Open** zodra mensen zich mogen aanmelden, en de vorige op **Gesloten**.
 
 ---
 
 ## 6. Onderhoud
 
-- Maak af en toe een back-up: Supabase → Table Editor → per tabel exporteren als CSV.
-  Of gebruik de exportknop in het logboek voor de wijzigingsgeschiedenis.
-- Namen van leden zijn persoonsgegevens. Noteer dit in het verwerkingsregister van de
-  vereniging en verwijder oude edities als ze niet meer nodig zijn.
-- Zorg dat een tweede bestuurslid toegang heeft tot de Supabase-, GitHub- en
-  Vercel-accounts.
+- Namen en e-mailadressen zijn persoonsgegevens. Noteer dit in het verwerkingsregister van de
+  vereniging en verwijder oude edities en het archief als ze niet meer nodig zijn.
+- Zorg dat een tweede bestuurslid beheerder is in de app en toegang heeft tot de Supabase-,
+  GitHub- en Vercel-accounts.
+- Back-up: Supabase → Table Editor → per tabel exporteren als CSV.
