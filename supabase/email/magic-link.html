@@ -1,0 +1,42 @@
+<!-- Supabase → Authentication → Emails → "Magic Link"
+     Onderwerp: Inloggen bij Bardiensten TV Veere -->
+<!doctype html>
+<html lang="nl">
+  <body style="margin:0;padding:0;background:#FBF5E4;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF5E4;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid #DDD7C2;">
+            <tr>
+              <td style="background:#2A3894;padding:24px 28px;font-family:Arial,Helvetica,sans-serif;">
+                <div style="color:#EE6A1E;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">Tennis Vereniging Veere</div>
+                <div style="color:#FFFFFF;font-size:30px;font-weight:900;text-transform:uppercase;line-height:1.1;margin-top:4px;">Bardiensten</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;font-family:Arial,Helvetica,sans-serif;color:#191C2E;font-size:18px;line-height:1.55;">
+                <p style="margin:0 0 20px;">Hallo,</p>
+                <p style="margin:0 0 24px;">Tik op de knop om in te loggen bij de bardiensten van TV Veere.</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td align="center" style="border-radius:12px;background:#2A3894;">
+                      <a href="{{ .ConfirmationURL }}" style="display:block;padding:18px 24px;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:#FFFFFF;text-decoration:none;border-radius:12px;">Inloggen</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:28px 0 8px;">Lukt de knop niet? Typ dan deze code in de app:</p>
+                <p style="margin:0 0 24px;font-size:34px;font-weight:bold;letter-spacing:6px;color:#2A3894;background:#E9EBF7;border-radius:12px;padding:14px;text-align:center;">{{ .Token }}</p>
+                <p style="margin:0;font-size:15px;color:#565A70;">De knop en de code zijn één uur geldig en werken één keer. Heb je dit niet zelf aangevraagd? Dan hoef je niets te doen.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 28px;background:#FBF5E4;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#565A70;border-top:1px solid #DDD7C2;">
+                Tennis Vereniging Veere · Bardiensten
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
