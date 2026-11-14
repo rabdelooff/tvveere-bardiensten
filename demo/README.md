@@ -41,7 +41,7 @@ geschat en blijft de video stil. Naast elke video komt een `…-spraak.json` met
 
 Stand van zaken: inspreken gaat via de ElevenLabs-koppeling (stem Leonie, model `eleven_v4`,
 flow "Bardiensten uitlegvideo's voice-over"). `spraak/ingesproken.json` houdt bij welke zinnen
-al zijn ingesproken (zinnummer → generation-id); klaar: vrijwilliger 00 t/m 10. De generations staan in
+al zijn ingesproken (zinnummer → generation-id); klaar: vrijwilliger 00 t/m 17. De generations staan in
 flow `IyyzcxXwNbvTCesk4Nbj`; de mp3's zijn nog niet gedownload (zie hieronder).
 
 Twee dingen om rekening mee te houden:
@@ -50,6 +50,3 @@ Twee dingen om rekening mee te houden:
   voor één; parallelle verzoeken worden geweigerd ("Free generations are busy").
 - De audiobestanden staan op `elevenlabsusercontent.com`; dat domein moet in de
   netwerkinstellingen van de omgeving zijn toegestaan om ze te kunnen downloaden.
-
-Let op: na vrijwilliger 10 weigerde ElevenLabs een generatie met "Free Tier access has been disabled"
-(ongebruikelijke activiteit op het account). Voor de rest is een betaald abonnement of een ander account nodig.
