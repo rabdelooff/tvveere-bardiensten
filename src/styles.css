@@ -461,3 +461,9 @@ select.veld { padding-inline: .5rem .25rem; text-overflow: ellipsis; }
   .blok .veld, .editie-rij .veld { padding-inline: .5rem; }
 }
 @media (max-width: 349px) { .venster-kop h2 { font-size: .9375rem; } }
+
+/* koptekst en info-icoon blijven op één regel, ook als de tekst afbreekt */
+.kop-tekst { flex: 1 1 0; min-width: 0; }
+.status-ok { flex-wrap: wrap; }
+.blok p { flex-wrap: wrap; align-items: center; }
+.blok p > span { flex: 1 1 0; min-width: 0; }

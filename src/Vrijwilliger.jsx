@@ -142,8 +142,8 @@ function MijnDienst({ s, dag, t, ctx }) {
 
       {zoekt && (
         <div className="blok oranje">
-          <p><Icon n="ruil" /> <span><b>Je zoekt een vervanger.</b>{aanbod > 0 && " Er heeft zich al iemand gemeld."}{" "}
-            <Info>Tot de beheerder een vervanger heeft goedgekeurd, blijft deze dienst van jou.</Info></span></p>
+          <p><Icon n="ruil" /> <span className="kop-tekst"><b>Je zoekt een vervanger.</b>{aanbod > 0 && " Er heeft zich al iemand gemeld."}</span>
+            <Info>Tot de beheerder een vervanger heeft goedgekeurd, blijft deze dienst van jou.</Info></p>
           <div className="knoppen">
             <a className="knop whatsapp klein" target="_blank" rel="noreferrer"
               href={`https://wa.me/?text=${encodeURIComponent(deel)}`}><Icon n="bericht" /><span>WhatsApp</span></a>
@@ -376,8 +376,8 @@ export function Mijn(ctx) {
 
       {aangemeld.length > 0 && (
         <section>
-          <h2 className="sectie">Aangemeld, nog niet ingedeeld ({aangemeld.length})
-            <Info>Je krijgt bericht zodra de beheerder het rooster heeft gemaakt.</Info></h2>
+          <h2 className="sectie"><span className="kop-tekst">Aangemeld ({aangemeld.length})</span>
+            <Info>Voor deze diensten heb je je aangemeld, maar je bent nog niet ingedeeld. Je krijgt bericht zodra de beheerder het rooster heeft gemaakt.</Info></h2>
           <ul className="kaart lijst">
             {aangemeld.map(({ dag, s }) => (
               <li key={s.id}><Icon n="klok" /><span><b>{fmtDagKort(dag.datum)}</b> · {tijdLabel(s)}{s.post !== "Bar" && ` · ${s.post}`}</span></li>
