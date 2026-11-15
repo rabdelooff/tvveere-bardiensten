@@ -41,12 +41,15 @@ geschat en blijft de video stil. Naast elke video komt een `…-spraak.json` met
 
 Stand van zaken: inspreken gaat via de ElevenLabs-koppeling (stem Leonie, model `eleven_v4`,
 flow "Bardiensten uitlegvideo's voice-over"). `spraak/ingesproken.json` houdt bij welke zinnen
-al zijn ingesproken (zinnummer → generation-id); alle zinnen van beide video's zijn ingesproken. De generations staan in
-flow `IyyzcxXwNbvTCesk4Nbj`; de mp3's zijn nog niet gedownload (zie hieronder).
+zijn ingesproken (zinnummer → generation-id); alle zinnen van beide video's zijn ingesproken en
+de 37 mp3's staan in `audio/vrijwilliger/` (18) en `audio/beheerder/` (19), samen ongeveer 3,5 MB.
+De generations staan in flow `IyyzcxXwNbvTCesk4Nbj`. Wil je de mp3's opnieuw ophalen, vraag dan met
+`creative_get_generations` verse (tijdelijke) signed URL's op; genereer niets opnieuw, dat kost credits.
 
 Twee dingen om rekening mee te houden:
 
 - Op het gratis ElevenLabs-abonnement kan er maar één opname tegelijk lopen. Start ze dus één
   voor één; parallelle verzoeken worden geweigerd ("Free generations are busy").
 - De audiobestanden staan op `elevenlabsusercontent.com`; dat domein moet in de
-  netwerkinstellingen van de omgeving zijn toegestaan om ze te kunnen downloaden.
+  netwerkinstellingen van de omgeving zijn toegestaan om ze opnieuw te kunnen downloaden.
+  Voor het opnemen zelf is dat niet nodig, omdat de mp3's in de repo staan.
