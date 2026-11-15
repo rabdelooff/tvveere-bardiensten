@@ -71,10 +71,14 @@ export function Knop({ soort = "primair", icon, onClick, children, breed, klein,
 
 export function Venster({ titel, onSluit, children, breed }) {
   const ref = useRef(null);
+  // onSluit is bij de meeste aanroepers elke render een nieuwe functie; via een ref
+  // blijft het effect eenmalig, zodat de focus niet uit een invoerveld wordt getrokken.
+  const sluit = useRef(onSluit);
+  sluit.current = onSluit;
   useEffect(() => {
     const vorige = document.activeElement;
     ref.current?.focus();
-    const toets = (e) => { if (e.key === "Escape") onSluit(); };
+    const toets = (e) => { if (e.key === "Escape") sluit.current(); };
     document.addEventListener("keydown", toets);
     document.body.style.overflow = "hidden";
     return () => {
@@ -82,7 +86,7 @@ export function Venster({ titel, onSluit, children, breed }) {
       document.body.style.overflow = "";
       vorige?.focus?.();
     };
-  }, [onSluit]);
+  }, []);
   return (
     <div className="venster-achter" onMouseDown={(e) => e.target === e.currentTarget && onSluit()}>
       <div className={`venster${breed ? " breed" : ""}`} role="dialog" aria-modal="true" aria-label={titel}
