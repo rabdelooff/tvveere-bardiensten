@@ -30,6 +30,12 @@ voeg je iemand toe die geen e-mailadres heeft of niet wil inloggen. Zo iemand ku
 indelen, maar krijgt geen meldingen: de beheerder informeert die persoon zelf. Bij het
 publiceren staat erbij wie dat zijn.
 
+Heb je wel een e-mailadres van die persoon, vul dat dan in (bij het toevoegen of later via de
+persoon in de lijst). Zodra die persoon voor het eerst inlogt met dat adres, wordt het account
+automatisch gekoppeld en blijven alle aanmeldingen en indelingen staan. Hoort het adres al bij
+een bestaand account, dan voeg je de twee samen. De app stuurt zelf geen uitnodiging: laat de
+persoon weten dat hij kan inloggen met dat adres.
+
 **Mensen verwijderen.** Bij *Beheer → Mensen* verwijder je iemand met alle aanmeldingen en
 indelingen. Bij iemand met een account verdwijnt ook het account; die persoon kan zich daarna
 wel opnieuw registreren. Wil je iemand buiten houden, gebruik dan *Toegang blokkeren*.
