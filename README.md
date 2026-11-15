@@ -14,6 +14,7 @@ Rooster voor kantinediensten per toernooi-editie. React + Vite, data en inlog in
 | Stap | Wie | Wat |
 |---|---|---|
 | Aanmelden | vrijwilliger | "Ik kan deze dienst". Dit is nog géén toewijzing. Anderen zien niet wie zich aanmeldde. |
+| Opmerking | vrijwilliger | Eén algemene opmerking per editie voor de beheerder, bijvoorbeeld "ik meld me aan voor vier diensten, maar wil er maximaal één draaien". Alleen beheerders zien dit, bij het indelen. |
 | Indelen | beheerder | Kiest per dienst uit de aanmeldingen (of iemand anders). Dit is een concept. |
 | Publiceren | beheerder | Maakt het concept zichtbaar. Iedereen die erbij komt of vervalt, krijgt een melding. |
 | Vervanger zoeken | vrijwilliger | "Ik kan toch niet": alle anderen krijgen bericht. De dienst blijft van jou. |

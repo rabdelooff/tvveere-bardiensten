@@ -7,6 +7,9 @@ import { Bevestig, Icon, Knop, Label, Leeg, Melding, Stepper, Venster } from "./
 const STATUS = { concept: "Concept", open: "Open", gesloten: "Gesloten" };
 const POSTEN = ["Bar", "Keuken", "BBQ", "Wedstrijdtafel"];
 
+const Opm = ({ tekst }) => (tekst
+  ? <span className="opm"><Icon n="notitie" /><span><span className="sr">Opmerking: </span>{tekst}</span></span> : null);
+
 function useBreed() {
   const mq = "(min-width: 1100px)";
   const [breed, setBreed] = useState(() => window.matchMedia(mq).matches);
@@ -104,7 +107,7 @@ function Indelen({ ctx, cur, editieKeuze }) {
   const detail = selShift && (
     <ShiftDetail key={selShift.id} s={selShift} ctx={ctx} cur={cur} tellingen={info.perPersoon} />
   );
-  const personen = <PersonenOverzicht r={r} perPersoon={info.perPersoon} />;
+  const personen = <PersonenOverzicht r={r} cur={cur} perPersoon={info.perPersoon} />;
 
   return (
     <div className="indelen">
@@ -245,6 +248,7 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
   const kandidaten = (r.aanmPerShift.get(s.id) || []).filter((a) => !inConcept(a.profile_id));
   const zoekers = t.filter((x) => x.status === "zoekt_vervanger");
   const n = (pid) => tellingen.get(pid)?.ingedeeld || 0;
+  const opm = (pid) => <Opm tekst={r.opmerking(cur.id, pid)} />;
 
   const deelIn = (pid) => actie(doe(supabase.from("indeling_concept").insert({ shift_id: s.id, profile_id: pid })));
   const haalWeg = (rij) => actie(doe(supabase.from("indeling_concept").delete().eq("id", rij.id)));
@@ -263,7 +267,8 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
           return (
             <li key={x.id}>
               <span className="rij-naam"><b>{r.naam(x.profile_id)}</b>
-                <small>{nieuw ? "Concept: nog niet gepubliceerd" : "Gepubliceerd"}</small></span>
+                <small>{nieuw ? "Concept: nog niet gepubliceerd" : "Gepubliceerd"} · nu {meervoud(n(x.profile_id), "dienst", "diensten")}</small>
+                {opm(x.profile_id)}</span>
               <Knop soort="rustig" klein icon="kruis" onClick={() => haalWeg(x)}>Weghalen</Knop>
             </li>
           );
@@ -285,7 +290,8 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
               <ul className="rijen">
                 {aanbod.map((a) => (
                   <li key={a.id}>
-                    <span className="rij-naam"><b>{r.naam(a.profile_id)}</b><small>wil overnemen · nu {meervoud(n(a.profile_id), "dienst", "diensten")}</small></span>
+                    <span className="rij-naam"><b>{r.naam(a.profile_id)}</b><small>wil overnemen · nu {meervoud(n(a.profile_id), "dienst", "diensten")}</small>
+                      {opm(a.profile_id)}</span>
                     <Knop soort="accent" klein icon="vink"
                       onClick={() => actie(rpc("keur_vervanging", { p_toewijzing: x.id, p_profile: a.profile_id }), "Goedgekeurd. Beiden hebben bericht gekregen.")}>
                       Goedkeuren
@@ -307,7 +313,8 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
           {kandidaten.map((a) => (
             <li key={a.id}>
               <span className="rij-naam"><b>{r.naam(a.profile_id)}</b>
-                <small>nu {meervoud(n(a.profile_id), "dienst", "diensten")} · {meervoud(tellingen.get(a.profile_id)?.aangemeld || 0, "aanmelding", "aanmeldingen")}</small></span>
+                <small>nu {meervoud(n(a.profile_id), "dienst", "diensten")} · {meervoud(tellingen.get(a.profile_id)?.aangemeld || 0, "aanmelding", "aanmeldingen")}</small>
+                {opm(a.profile_id)}</span>
               <Knop soort="primair" klein icon="plus" disabled={vol} onClick={() => deelIn(a.profile_id)}>Indelen</Knop>
             </li>
           ))}
@@ -324,7 +331,7 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
           <ul className="rijen scroll">
             {anderen.map((p) => (
               <li key={p.id}>
-                <span className="rij-naam"><b>{p.naam}</b><small>nu {meervoud(n(p.id), "dienst", "diensten")} · niet aangemeld</small></span>
+                <span className="rij-naam"><b>{p.naam}</b><small>nu {meervoud(n(p.id), "dienst", "diensten")} · niet aangemeld</small>{opm(p.id)}</span>
                 <Knop soort="tweede" klein icon="plus" disabled={vol} onClick={() => deelIn(p.id)}>Indelen</Knop>
               </li>
             ))}
@@ -363,7 +370,7 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
   );
 }
 
-function PersonenOverzicht({ r, perPersoon }) {
+function PersonenOverzicht({ r, cur, perPersoon }) {
   const rijen = r.profiles.filter((p) => p.actief || perPersoon.has(p.id))
     .map((p) => ({ p, ...(perPersoon.get(p.id) || { aangemeld: 0, ingedeeld: 0 }) }))
     .sort((a, b) => b.aangemeld - a.aangemeld || a.p.naam.localeCompare(b.p.naam));
@@ -373,7 +380,7 @@ function PersonenOverzicht({ r, perPersoon }) {
       <thead><tr><th>Naam</th><th>Aangemeld</th><th>Ingedeeld</th></tr></thead>
       <tbody>
         {rijen.map(({ p, aangemeld, ingedeeld }) => (
-          <tr key={p.id}><td>{p.naam}</td><td>{aangemeld}</td><td><b>{ingedeeld}</b></td></tr>
+          <tr key={p.id}><td>{p.naam}<Opm tekst={r.opmerking(cur.id, p.id)} /></td><td>{aangemeld}</td><td><b>{ingedeeld}</b></td></tr>
         ))}
       </tbody>
     </table>

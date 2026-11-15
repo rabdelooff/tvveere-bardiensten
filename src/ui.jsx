@@ -25,6 +25,7 @@ const P = {
   uit: <><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" /><path d="M10 8l-4 4 4 4M6 12h10" /></>,
   bericht: <path d="M20.5 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.6A8 8 0 1 1 20.5 11.5z" />,
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>,
+  notitie: <><path d="M5 4h14a1 1 0 0 1 1 1v10l-5 5H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" /><path d="M15 20v-5h5M8 9h8M8 13h4" /></>,
   zoek: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
 };
 
