@@ -44,6 +44,43 @@ export const parseTijd = (t) => {
 export const startMinuten = (s) => { const [h, m] = parseTijd(s.start_tijd); return h * 60 + m; };
 
 const pad2 = (n) => String(n).padStart(2, "0");
+
+/* --- tijden invoeren: opslag is "9.30" of "sluit" --- */
+
+export const minuten = (t) => {
+  const m = String(t || "").trim().match(/^(\d{1,2})[.:](\d{2})$/);
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+};
+const uitMinuten = (m) => `${Math.floor(m / 60)}.${pad2(m % 60)}`;
+export const plusUren = (t, uren) => { const m = minuten(t); return m === null ? "" : uitMinuten(Math.min(23 * 60 + 45, m + uren * 60)); };
+
+/* Maakt van wat iemand typt een nette tijd, of null als het geen tijd is.
+   "19" → 19.00 · "930" → 9.30 · "1930" → 19.30 · "19:30", "19,30", "19u30" → 19.30 · "7.5" → 7.50 */
+export const leesTijd = (tekst, magSluit) => {
+  const t = String(tekst || "").trim().toLowerCase();
+  if (magSluit && /^s/.test(t)) return "sluit";
+  let u, m;
+  const cijfers = t.match(/^(\d{1,4})\s*(?:u|uur|h)?$/);
+  const gesplitst = t.match(/^(\d{1,2})\s*[.:,;uh\s-]\s*(\d{1,2})$/);
+  if (cijfers) {
+    const c = cijfers[1];
+    [u, m] = c.length <= 2 ? [Number(c), 0] : [Number(c.slice(0, -2)), Number(c.slice(-2))];
+  } else if (gesplitst) {
+    [u, m] = [Number(gesplitst[1]), Number(gesplitst[2].length === 1 ? gesplitst[2] + "0" : gesplitst[2])];
+  } else return null;
+  return u > 23 || m > 59 ? null : uitMinuten(u * 60 + m);
+};
+
+/* Voorstel voor een nieuwe dienst: sluit aan op de laatste dienst van die dag. */
+export const dienstVoorstel = (diensten) => {
+  const laatste = diensten[diensten.length - 1];
+  if (!laatste) return { post: "Bar", start: "19.00", end: "sluit", cap: 2 };
+  const basis = { post: laatste.post, cap: laatste.plekken };
+  if (/sluit/i.test(laatste.eind_tijd) || minuten(laatste.eind_tijd) === null) return { ...basis, start: laatste.start_tijd, end: laatste.eind_tijd };
+  const eind = minuten(laatste.eind_tijd) + 180;
+  return { ...basis, start: laatste.eind_tijd, end: eind > 22 * 60 ? "sluit" : plusUren(laatste.eind_tijd, 3) };
+};
 const stamp = (d, [h, mi]) => `${d.replace(/-/g, "")}T${pad2(h)}${pad2(mi)}00`;
 const esc = (s) => s.replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
 

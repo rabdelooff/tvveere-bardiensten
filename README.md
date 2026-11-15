@@ -25,6 +25,19 @@ Rooster voor kantinediensten per toernooi-editie. React + Vite, data en inlog in
 **Beheerders.** De allereerste persoon die inlogt, wordt beheerder. Daarna maak je anderen
 beheerder bij *Beheer → Mensen*. Er blijft altijd minstens één beheerder over.
 
+**Mensen zonder account.** Bij *Beheer → Mensen* (of direct bij het indelen, via *Iemand anders*)
+voeg je iemand toe die geen e-mailadres heeft of niet wil inloggen. Zo iemand kun je gewoon
+indelen, maar krijgt geen meldingen: de beheerder informeert die persoon zelf. Bij het
+publiceren staat erbij wie dat zijn.
+
+**Mensen verwijderen.** Bij *Beheer → Mensen* verwijder je iemand met alle aanmeldingen en
+indelingen. Bij iemand met een account verdwijnt ook het account; die persoon kan zich daarna
+wel opnieuw registreren. Wil je iemand buiten houden, gebruik dan *Toegang blokkeren*.
+
+**Tijden invoeren.** Bij *Rooster opzetten* typ je `19`, `1930` of `19:30`; de app maakt er
+`19.00` of `19.30` van. Het maantje zet de eindtijd op *sluit*. Een eindtijd vóór de begintijd
+wordt geweigerd. Een nieuwe dienst sluit standaard aan op de vorige dienst van die dag.
+
 **Registratie is vrij.** Iedereen met een e-mailadres kan inloggen en ziet dan het gepubliceerde
 rooster met namen. Ongewenste accounts blokkeer je bij *Beheer → Mensen*.
 

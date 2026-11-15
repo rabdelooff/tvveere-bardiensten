@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { doe, rpc } from "./data";
 import { isGeinstalleerd, isIOS, pushStatus, zetPushAan, zetPushUit } from "./push";
-import { fmtDag, fmtDagKort, fmtMoment, foutTekst, icsHref, meervoud, opsomming, startMinuten, tijdLabel, vandaag, voornaam } from "./util";
-import { Bevestig, Icon, Knop, Label, Leeg, Melding, Venster } from "./ui";
+import { fmtDag, fmtDagKort, fmtMoment, foutTekst, icsHref, opsomming, tijdLabel, vandaag, voornaam } from "./util";
+import { Bevestig, Icon, Info, Knop, Label, Leeg, Venster } from "./ui";
 
 /* --- gedeeld: alle komende diensten van open edities, op volgorde --- */
 
@@ -42,18 +42,35 @@ function DienstKaart({ s, dag, ctx, toonDag }) {
   const afmelden = () => actie(
     doe(supabase.from("aanmeldingen").delete().eq("id", mijnAanm.id)), "Je aanmelding is ingetrokken");
 
+  const vol = vrij === 0;
+
   return (
     <article className={`kaart dienst${mijnToew ? " van-mij" : ""}${promo || zoekers.length ? " hulp" : ""}`}>
-      <div className="dienst-kop">
-        <div>
+      <div className="dienst-rij">
+        <div className="dienst-info">
           {toonDag && <div className="dienst-dag">{fmtDag(dag.datum)}</div>}
-          <div className="dienst-tijd">{tijdLabel(s)}</div>
+          <div className="dienst-kop">
+            <span className="dienst-tijd">{tijdLabel(s)}</span>
+            {s.post !== "Bar" && <Label kleur="blauw">{s.post}</Label>}
+            <span className={`bezet${vol ? " vol" : promo ? " oranje" : ""}`} title={`${toew.length} van ${s.plekken} plekken bezet`}>
+              <Icon n="mensen" />{toew.length}/{s.plekken}<span className="sr"> plekken bezet</span>
+            </span>
+          </div>
+          <p className="wie">{namen.length ? opsomming(namen) : "Nog niemand ingedeeld"}</p>
         </div>
-        <div className="labels">
-          {s.post !== "Bar" && <Label kleur="blauw">{s.post}</Label>}
-          {mijnToew ? <Label kleur="groen">Jij bent ingedeeld</Label>
-            : vrij === 0 ? <Label>Vol</Label>
-              : <Label kleur={promo ? "oranje" : "grijs"}>Nog {meervoud(vrij, "plek", "plekken")}</Label>}
+        <div className="dienst-actie">
+          {mijnToew ? <Label kleur="groen"><Icon n="vink" /> Ingedeeld</Label>
+            : mijnAanm ? (
+              <>
+                <span className="status-ok" title="Je hoort het als je bent ingedeeld"><Icon n="vink" /> Aangemeld</span>
+                <Knop soort="rustig" klein alleenIcon icon="kruis" onClick={() => setVraag(true)}>Aanmelding intrekken</Knop>
+              </>
+            ) : vol && zoekers.length > 0 ? null : (
+              <Knop soort={vol ? "tweede" : "primair"} klein icon="plus" onClick={aanmelden}
+                title={vol ? "Aanmelden als reserve" : "Ik kan deze dienst"}>
+                {vol ? "Reserve" : "Ik kan"}
+              </Knop>
+            )}
         </div>
       </div>
 
@@ -61,42 +78,27 @@ function DienstKaart({ s, dag, ctx, toonDag }) {
         <p className="oproep"><Icon n="megafoon" /> <span><b>Hulp gezocht.</b> {s.promo_tekst || "Kun jij deze dienst draaien?"}</span></p>
       )}
 
-      <p className="wie">
-        {namen.length ? <>Ingedeeld: <b>{opsomming(namen)}</b></> : "Er is nog niemand ingedeeld."}
-      </p>
-
       {zoekers.map((t) => {
         const aangeboden = (r.aanbodPerToew.get(t.id) || []).some((a) => a.profile_id === ik);
         return (
           <div className="blok oranje" key={t.id}>
-            <p><Icon n="ruil" /> <span><b>{r.naam(t.profile_id)}</b> zoekt een vervanger voor deze dienst.</span></p>
+            <p><Icon n="ruil" /> <span><b>{r.naam(t.profile_id)}</b> zoekt een vervanger.</span></p>
             {mijnToew ? null : aangeboden ? (
-              <>
-                <p className="status-ok"><Icon n="vink" /> Je hebt je aangeboden. De beheerder beslist.</p>
-                <Knop soort="rustig" onClick={() => actie(rpc("trek_aanbod_in", { p_toewijzing: t.id }), "Aanbod ingetrokken")}>
-                  Ik kan toch niet
+              <div className="rij-status">
+                <span className="status-ok"><Icon n="vink" /> Aangeboden <Info>De beheerder beslist wie de dienst overneemt. Je krijgt bericht.</Info></span>
+                <Knop soort="rustig" klein onClick={() => actie(rpc("trek_aanbod_in", { p_toewijzing: t.id }), "Aanbod ingetrokken")}>
+                  Toch niet
                 </Knop>
-              </>
+              </div>
             ) : (
-              <Knop soort="accent" breed icon="ruil"
+              <Knop soort="accent" klein icon="ruil"
                 onClick={() => actie(rpc("bied_aan", { p_toewijzing: t.id }), "Bedankt! De beheerder krijgt bericht.")}>
-                Ik wil overnemen
+                Ik neem over
               </Knop>
             )}
           </div>
         );
       })}
-
-      {!mijnToew && (mijnAanm ? (
-        <div className="rij-status">
-          <p className="status-ok"><Icon n="vink" /> <span>Je hebt je aangemeld. Je hoort het als je bent ingedeeld.</span></p>
-          <Knop soort="rustig" onClick={() => setVraag(true)}>Toch niet</Knop>
-        </div>
-      ) : vrij === 0 && zoekers.length > 0 ? null : (
-        <Knop soort={vrij === 0 ? "tweede" : "primair"} breed icon="plus" onClick={aanmelden}>
-          {vrij === 0 ? "Aanmelden als reserve" : "Ik kan deze dienst"}
-        </Knop>
-      ))}
 
       {vraag && (
         <Bevestig titel="Aanmelding intrekken?" ja="Ja, ik kan toch niet" nee="Nee, laat staan"
@@ -120,32 +122,35 @@ function MijnDienst({ s, dag, t, ctx }) {
 
   return (
     <article className={`kaart dienst van-mij${zoekt ? " hulp" : ""}`}>
-      <div className="dienst-kop">
-        <div>
+      <div className="dienst-rij">
+        <div className="dienst-info">
           <div className="dienst-dag">{fmtDag(dag.datum)}</div>
-          <div className="dienst-tijd">{tijdLabel(s)}</div>
+          <div className="dienst-kop">
+            <span className="dienst-tijd">{tijdLabel(s)}</span>
+            {s.post !== "Bar" && <Label kleur="blauw">{s.post}</Label>}
+          </div>
+          <p className="wie">{collegas.length ? <>Met {opsomming(collegas)}</> : "Je staat (nog) alleen"}</p>
         </div>
-        {s.post !== "Bar" && <div className="labels"><Label kleur="blauw">{s.post}</Label></div>}
+        {!zoekt && (
+          <div className="dienst-actie">
+            <a className="knop tweede klein icoon" href={icsHref([{ datum: dag.datum, s }], editie?.naam || "TV Veere")}
+              download={`bardienst-${dag.datum}.ics`} title="Zet in mijn agenda" aria-label="Zet in mijn agenda"><Icon n="kalender" /></a>
+            <Knop soort="rustig" klein icon="ruil" onClick={() => setVraag(true)} title="Ik kan toch niet: zoek een vervanger">Kan niet</Knop>
+          </div>
+        )}
       </div>
-      <p className="wie">{collegas.length ? <>Samen met <b>{opsomming(collegas)}</b></> : "Je staat (nog) alleen ingedeeld."}</p>
 
-      {zoekt ? (
+      {zoekt && (
         <div className="blok oranje">
-          <p><Icon n="ruil" /> <span><b>Je zoekt een vervanger.</b> Tot de beheerder iemand heeft goedgekeurd, blijft deze dienst van jou.
-            {aanbod > 0 && " Er heeft zich al iemand gemeld."}</span></p>
+          <p><Icon n="ruil" /> <span><b>Je zoekt een vervanger.</b>{aanbod > 0 && " Er heeft zich al iemand gemeld."}{" "}
+            <Info>Tot de beheerder een vervanger heeft goedgekeurd, blijft deze dienst van jou.</Info></span></p>
           <div className="knoppen">
-            <a className="knop whatsapp" target="_blank" rel="noreferrer"
-              href={`https://wa.me/?text=${encodeURIComponent(deel)}`}><Icon n="bericht" /><span>Vraag het via WhatsApp</span></a>
-            <Knop soort="tweede" onClick={() => actie(rpc("houd_dienst", { p_toewijzing: t.id }), "Fijn, je draait de dienst zelf")}>
+            <a className="knop whatsapp klein" target="_blank" rel="noreferrer"
+              href={`https://wa.me/?text=${encodeURIComponent(deel)}`}><Icon n="bericht" /><span>WhatsApp</span></a>
+            <Knop soort="tweede" klein onClick={() => actie(rpc("houd_dienst", { p_toewijzing: t.id }), "Fijn, je draait de dienst zelf")}>
               Ik kan toch wel
             </Knop>
           </div>
-        </div>
-      ) : (
-        <div className="knoppen">
-          <a className="knop tweede" href={icsHref([{ datum: dag.datum, s }], editie?.naam || "TV Veere")}
-            download={`bardienst-${dag.datum}.ics`}><Icon n="kalender" /><span>Zet in mijn agenda</span></a>
-          <Knop soort="rustig" onClick={() => setVraag(true)}>Ik kan toch niet</Knop>
         </div>
       )}
 
@@ -177,33 +182,33 @@ function OpmerkingKaart({ editie, ctx, toonEditie }) {
 
   return (
     <section className="kaart opmerking">
-      <h2 className="kaart-titel"><Icon n="notitie" /> Opmerking voor de beheerder{toonEditie && ` · ${editie.naam}`}</h2>
+      <div className="kopregel">
+        <h2 className="kaart-titel"><Icon n="notitie" /> Opmerking voor beheerder{toonEditie && ` · ${editie.naam}`}</h2>
+        <Info>Wil je iets kwijt over je aanmeldingen? Bijvoorbeeld dat je je voor meerdere diensten aanmeldt, maar er maximaal één wilt draaien. Alleen de beheerders lezen dit.</Info>
+        {tekst === null && (huidig ? (
+          <span className="kopregel-acties">
+            <Knop soort="rustig" klein alleenIcon icon="bewerk" onClick={() => setTekst(huidig)}>Opmerking wijzigen</Knop>
+            <Knop soort="rustig" klein alleenIcon icon="prullenbak" onClick={() => setVraag(true)}>Opmerking verwijderen</Knop>
+          </span>
+        ) : (
+          <span className="kopregel-acties">
+            <Knop soort="tweede" klein alleenIcon icon="plus" onClick={() => setTekst("")}>Opmerking toevoegen</Knop>
+          </span>
+        ))}
+      </div>
       {tekst !== null ? (
         <form className="veld-groep" onSubmit={(e) => { e.preventDefault(); bewaar(); }}>
-          <label htmlFor={veldId}>Wat moet de beheerder weten bij het indelen?</label>
           <textarea id={veldId} className="veld" rows={3} maxLength={OPM_MAX} autoFocus value={tekst}
+            aria-label="Wat moet de beheerder weten bij het indelen?"
             placeholder="Bijvoorbeeld: ik meld me aan voor vier diensten, maar wil er maximaal één draaien."
             onChange={(e) => setTekst(e.target.value)} />
-          <p className="klein-tekst">Alleen de beheerders lezen dit. {tekst.length}/{OPM_MAX} tekens.</p>
           <div className="knoppen">
-            <Knop onClick={bewaar} disabled={!tekst.trim()}>Opslaan</Knop>
-            <Knop soort="rustig" onClick={() => setTekst(null)}>Annuleren</Knop>
+            <Knop klein onClick={bewaar} disabled={!tekst.trim()}>Opslaan</Knop>
+            <Knop soort="rustig" klein onClick={() => setTekst(null)}>Annuleren</Knop>
+            <span className="klein-tekst teller-tekst">{tekst.length}/{OPM_MAX}</span>
           </div>
         </form>
-      ) : huidig ? (
-        <>
-          <p className="opm-tekst">{huidig}</p>
-          <div className="knoppen">
-            <Knop soort="tweede" icon="bewerk" onClick={() => setTekst(huidig)}>Wijzigen</Knop>
-            <Knop soort="rustig" onClick={() => setVraag(true)}>Verwijderen</Knop>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="klein-tekst">Wil je iets kwijt over je aanmeldingen? Bijvoorbeeld dat je je voor meerdere diensten aanmeldt, maar er maximaal één wilt draaien.</p>
-          <Knop soort="tweede" icon="plus" onClick={() => setTekst("")}>Opmerking toevoegen</Knop>
-        </>
-      )}
+      ) : huidig ? <p className="opm-tekst">{huidig}</p> : null}
       {vraag && (
         <Bevestig titel="Opmerking verwijderen?" ja="Ja, verwijder" nee="Nee, laat staan" tekst={huidig}
           onJa={() => actie(rpc("zet_opmerking", { p_edition: editie.id, p_tekst: "" }), "Opmerking verwijderd")}
@@ -364,27 +369,27 @@ export function Mijn(ctx) {
           </Leeg>
         ) : mijn.map(({ dag, s, t }) => <MijnDienst key={s.id} s={s} dag={dag} t={t} ctx={ctx} />)}
         {mijn.length > 1 && (
-          <a className="knop tweede breed" href={icsHref(mijn.map(({ dag, s }) => ({ datum: dag.datum, s })), editieNaam)}
-            download="bardiensten-tvveere.ics"><Icon n="kalender" /><span>Zet alle {mijn.length} in mijn agenda</span></a>
+          <a className="knop tweede klein" href={icsHref(mijn.map(({ dag, s }) => ({ datum: dag.datum, s })), editieNaam)}
+            download="bardiensten-tvveere.ics"><Icon n="kalender" /><span>Alle {mijn.length} in mijn agenda</span></a>
         )}
       </section>
 
       {aangemeld.length > 0 && (
         <section>
-          <h2 className="sectie">Aangemeld, nog niet ingedeeld ({aangemeld.length})</h2>
+          <h2 className="sectie">Aangemeld, nog niet ingedeeld ({aangemeld.length})
+            <Info>Je krijgt bericht zodra de beheerder het rooster heeft gemaakt.</Info></h2>
           <ul className="kaart lijst">
             {aangemeld.map(({ dag, s }) => (
               <li key={s.id}><Icon n="klok" /><span><b>{fmtDagKort(dag.datum)}</b> · {tijdLabel(s)}{s.post !== "Bar" && ` · ${s.post}`}</span></li>
             ))}
           </ul>
-          <p className="klein-tekst">Je krijgt bericht zodra de beheerder het rooster heeft gemaakt.</p>
         </section>
       )}
 
       <Opmerkingen komend={komend} ctx={ctx} alleenMet={aangemeld.length === 0} />
 
       <Knop soort={mijn.length || aangemeld.length ? "tweede" : "primair"} breed icon="lijst" onClick={() => ga("diensten")}>
-        Bekijk alle diensten en meld je aan
+        Alle diensten
       </Knop>
     </div>
   );
@@ -419,13 +424,13 @@ export function Diensten(ctx) {
 
   return (
     <div className="kolom">
-      <p className="uitleg">
-        <b>{edities.join(" · ")}</b><br />
-        Tik op <b>Ik kan deze dienst</b> bij elke dienst waarop je kunt. De beheerder maakt daarna het rooster en laat je weten wanneer je bent ingedeeld.
-      </p>
+      <div className="kopregel">
+        <b>{edities.join(" · ")}</b>
+        <Info>Tik op <b>Ik kan</b> bij elke dienst waarop je kunt. De beheerder maakt daarna het rooster en laat je weten wanneer je bent ingedeeld. Het cijfer bij het poppetje laat zien hoeveel plekken al bezet zijn.</Info>
+      </div>
       <Opmerkingen komend={komend} ctx={ctx} />
       <div className="keuze" role="group" aria-label="Welke diensten wil je zien">
-        <button type="button" aria-pressed={filter === "alle"} onClick={() => setFilter("alle")}>Alle diensten</button>
+        <button type="button" aria-pressed={filter === "alle"} onClick={() => setFilter("alle")}>Alle</button>
         <button type="button" aria-pressed={filter === "nodig"} onClick={() => setFilter("nodig")}>Hulp nodig ({telling})</button>
       </div>
       {lijst.length === 0 && <Leeg titel="Alles is rond">Voor alle diensten zijn genoeg mensen ingedeeld.</Leeg>}

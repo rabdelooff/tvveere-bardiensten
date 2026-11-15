@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { leesTijd } from "./util";
 
 /* --- iconen --- */
 
@@ -26,6 +27,8 @@ const P = {
   bericht: <path d="M20.5 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.6A8 8 0 1 1 20.5 11.5z" />,
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>,
   notitie: <><path d="M5 4h14a1 1 0 0 1 1 1v10l-5 5H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" /><path d="M15 20v-5h5M8 9h8M8 13h4" /></>,
+  maan: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
+  ongedaan: <><path d="M4 9h10a5 5 0 0 1 0 10h-3" /><path d="M8 5 4 9l4 4" /></>,
   zoek: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
 };
 
@@ -44,7 +47,8 @@ export const Logo = ({ size = 44 }) => (
 
 /* --- knop met "bezig"-toestand: voorkomt dubbel tikken --- */
 
-export function Knop({ soort = "primair", icon, onClick, children, breed, klein, disabled, ...rest }) {
+/* alleenIcon: toont alleen het icoon; de tekst blijft er voor schermlezers en als tooltip. */
+export function Knop({ soort = "primair", icon, onClick, children, breed, klein, disabled, alleenIcon, ...rest }) {
   const [bezig, setBezig] = useState(false);
   const leeft = useRef(true);
   useEffect(() => () => { leeft.current = false; }, []);
@@ -57,10 +61,11 @@ export function Knop({ soort = "primair", icon, onClick, children, breed, klein,
     }
   };
   return (
-    <button type="button" className={`knop ${soort}${breed ? " breed" : ""}${klein ? " klein" : ""}`}
-      onClick={klik} disabled={disabled || bezig} aria-busy={bezig || undefined} {...rest}>
+    <button type="button" className={`knop ${soort}${breed ? " breed" : ""}${klein ? " klein" : ""}${alleenIcon ? " icoon" : ""}`}
+      onClick={klik} disabled={disabled || bezig} aria-busy={bezig || undefined}
+      title={alleenIcon && typeof children === "string" ? children : undefined} {...rest}>
       {bezig ? <span className="spinner" aria-hidden="true" /> : icon && <Icon n={icon} />}
-      <span>{children}</span>
+      <span className={alleenIcon ? "sr" : undefined}>{children}</span>
     </button>
   );
 }
@@ -125,6 +130,55 @@ export function Stepper({ waarde, min = 1, max = 12, onChange, label }) {
       <b aria-live="polite">{waarde}</b>
       <button type="button" onClick={() => onChange(Math.min(max, waarde + 1))} disabled={waarde >= max}
         aria-label="Eén meer">+</button>
+    </span>
+  );
+}
+
+/* --- uitleg achter een info-icoon: tik om te tonen of te verbergen --- */
+
+export function Info({ children, label = "Uitleg" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className={`info-knop${open ? " open" : ""}`} aria-expanded={open} aria-label={label} title={label}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}><Icon n="info" /></button>
+      {open && <span className="info-tekst" role="note">{children}</span>}
+    </>
+  );
+}
+
+/* --- tijdveld: smal tekstveld dat meedenkt ---
+   Typ "19", "1930", "19:30" of "7.5": het wordt "19.00", "19.30", "19.30", "7.50".
+   waarde en onChange gebruiken de opslagnotatie: "19.00" of "sluit".
+   controle(nieuweWaarde) geeft een foutmelding terug, of niets als het goed is. */
+
+export function TijdVeld({ waarde, onChange, label, magSluit, standaard = "22.00", controle, onFout }) {
+  const sluit = /sluit/i.test(waarde || "");
+  const [v, setV] = useState(waarde || "");
+  useEffect(() => { setV(waarde || ""); }, [waarde]);
+
+  const leg = (tekst) => {
+    const nieuw = leesTijd(tekst, magSluit);
+    const probleem = nieuw === null ? `Vul een tijd in, bijvoorbeeld 19.30${magSluit ? " of sluit" : ""}` : nieuw === waarde ? null : controle?.(nieuw);
+    if (probleem) { onFout?.(probleem); setV(waarde || ""); return; }
+    setV(nieuw);
+    if (nieuw !== waarde) onChange(nieuw);
+  };
+
+  return (
+    <span className="tijdveld">
+      <input type="text" inputMode="numeric" autoComplete="off" className={`veld tijd${sluit ? " vast" : ""}`} value={v}
+        aria-label={label} placeholder="uu.mm"
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") { setV(waarde || ""); } }}
+        onBlur={() => (v.trim() ? leg(v) : setV(waarde || ""))} />
+      {magSluit && (
+        <button type="button" className="sluit-knop" aria-pressed={sluit} aria-label="Tot sluitingstijd" title="Tot sluitingstijd"
+          onClick={() => leg(sluit ? standaard : "sluit")}>
+          <Icon n="maan" />
+        </button>
+      )}
     </span>
   );
 }

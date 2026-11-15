@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { doe, rpc } from "./data";
-import { D, fmtDag, fmtDagKort, fmtMoment, fmtRange, isoD, meervoud, nextDate, tijdLabel, vandaag } from "./util";
-import { Bevestig, Icon, Knop, Label, Leeg, Melding, Stepper, Venster } from "./ui";
+import { D, dienstVoorstel, fmtDag, fmtDagKort, fmtMoment, fmtRange, foutTekst, isoD, meervoud, minuten, nextDate, tijdLabel, vandaag } from "./util";
+import { Bevestig, Icon, Info, Knop, Label, Leeg, Melding, Stepper, TijdVeld, Venster } from "./ui";
 
 const STATUS = { concept: "Concept", open: "Open", gesloten: "Gesloten" };
 const POSTEN = ["Bar", "Keuken", "BBQ", "Wedstrijdtafel"];
@@ -39,7 +39,7 @@ export function Beheer(ctx) {
   const tabs = [["indelen", "Indelen"], ["opzet", "Rooster opzetten"], ["mensen", "Mensen"], ["logboek", "Logboek"]];
   const editieKeuze = r.editions.length > 0 && (
     <label className="editie-keuze">
-      <span>Editie</span>
+      <span className="sr">Editie</span>
       <select className="veld" value={cur?.id || ""} onChange={(e) => setCurId(e.target.value)}>
         {r.editions.map((e) => <option key={e.id} value={e.id}>{e.naam} · {STATUS[e.status]}</option>)}
       </select>
@@ -66,7 +66,7 @@ export function Beheer(ctx) {
    ===================================================================== */
 
 function Indelen({ ctx, cur, editieKeuze }) {
-  const { r, actie, ga } = ctx;
+  const { r, actie, ga, zeg } = ctx;
   const breed = useBreed();
   const [sel, setSel] = useState(null);
   const [publiceren, setPubliceren] = useState(false);
@@ -92,8 +92,9 @@ function Indelen({ ctx, cur, editieKeuze }) {
       for (const y of t) if (!c.some((x) => x.profile_id === y.profile_id)) weg.push({ s, pid: y.profile_id });
       for (const a of r.aanmPerShift.get(s.id) || []) tel(a.profile_id, "aangemeld");
     }
-    return { nieuw, weg, perPersoon, plekken, gevuld, tekort };
-  }, [shifts, r.conceptPerShift, r.toewPerShift, r.aanmPerShift]);
+    const zonderAccount = [...new Set([...nieuw, ...weg].map((x) => x.pid))].filter((pid) => r.persoon.get(pid)?.handmatig);
+    return { nieuw, weg, perPersoon, plekken, gevuld, tekort, zonderAccount };
+  }, [shifts, r.conceptPerShift, r.toewPerShift, r.aanmPerShift, r.persoon]);
 
   const selShift = shifts.find((s) => s.id === sel) || null;
   const wijzigingen = info.nieuw.length + info.weg.length;
@@ -116,8 +117,9 @@ function Indelen({ ctx, cur, editieKeuze }) {
           {editieKeuze}
           <div className="cijfers">
             <div><b>{info.gevuld}<small>/{info.plekken}</small></b><span>plekken gevuld</span></div>
-            <div><b className={info.tekort ? "oranje" : ""}>{info.tekort}</b><span>{info.tekort === 1 ? "dienst" : "diensten"} niet vol</span></div>
+            <div><b className={info.tekort ? "oranje" : ""}>{info.tekort}</b><span>niet vol</span></div>
           </div>
+          {!breed && <Knop soort="tweede" klein alleenIcon icon="mensen" onClick={() => setOverzicht(true)}>Overzicht per persoon</Knop>}
         </div>
 
         {cur.status !== "open" && (
@@ -126,15 +128,6 @@ function Indelen({ ctx, cur, editieKeuze }) {
             <button type="button" className="tekstknop" onClick={() => ga("beheer/opzet")}>Naar Rooster opzetten</button>
           </Melding>
         )}
-
-        {wijzigingen > 0 && (
-          <div className="publiceer-balk">
-            <span><b>{meervoud(wijzigingen, "wijziging", "wijzigingen")}</b> nog niet gepubliceerd. Vrijwilligers zien dit nog niet.</span>
-            <Knop soort="accent" icon="megafoon" onClick={() => setPubliceren(true)}>Bekijk en publiceer</Knop>
-          </div>
-        )}
-
-        {!breed && <Knop soort="tweede" breed icon="mensen" onClick={() => setOverzicht(true)}>Overzicht per persoon</Knop>}
 
         {dagen.length === 0 && <Leeg titel="Nog geen dagen">Voeg dagen en diensten toe bij “Rooster opzetten”.</Leeg>}
 
@@ -147,6 +140,13 @@ function Indelen({ ctx, cur, editieKeuze }) {
             </div>
           </section>
         ))}
+
+        {wijzigingen > 0 && (
+          <div className="publiceer-balk">
+            <span><b>{meervoud(wijzigingen, "wijziging", "wijzigingen")}</b> nog niet gepubliceerd</span>
+            <Knop soort="accent" klein icon="megafoon" onClick={() => setPubliceren(true)}>Publiceer</Knop>
+          </div>
+        )}
       </div>
 
       {breed && (
@@ -191,10 +191,21 @@ function Indelen({ ctx, cur, editieKeuze }) {
                 <li key={s.id + pid}><Icon n="kruis" /><span><b>{r.naam(pid)}</b> · {fmtDagKort(r.datumVan(s))} {tijdLabel(s)}</span></li>))}</ul>
             </>
           )}
-          <p className="uitleg">Iedereen in deze lijst krijgt een melding. Daarna is het rooster voor alle vrijwilligers zichtbaar.</p>
+          {info.zonderAccount.length > 0 && (
+            <Melding soort="waarschuwing">
+              <b>Zelf informeren:</b> {info.zonderAccount.map((pid) => r.naam(pid)).join(", ")}. {info.zonderAccount.length === 1 ? "Deze persoon heeft" : "Deze mensen hebben"} geen account en {info.zonderAccount.length === 1 ? "krijgt" : "krijgen"} geen melding.
+            </Melding>
+          )}
+          <p className="klein-tekst">Iedereen met een account krijgt een melding. Daarna is het rooster voor alle vrijwilligers zichtbaar.</p>
           <div className="knoppen stapel">
             <Knop soort="accent" breed icon="megafoon" disabled={cur.status !== "open"}
-              onClick={async () => { if (await actie(rpc("publiceer", { p_edition: cur.id }), "Rooster gepubliceerd, meldingen verstuurd")) setPubliceren(false); }}>
+              onClick={async () => {
+                const zelf = info.zonderAccount.length;
+                if (await actie(rpc("publiceer", { p_edition: cur.id }), zelf ? null : "Rooster gepubliceerd, meldingen verstuurd")) {
+                  if (zelf) zeg(`Gepubliceerd. Informeer zelf nog ${meervoud(zelf, "persoon", "mensen")} zonder account.`);
+                  setPubliceren(false);
+                }
+              }}>
               Publiceer en stuur meldingen
             </Knop>
             <Knop soort="rustig" breed onClick={() => setPubliceren(false)}>Nog niet</Knop>
@@ -232,13 +243,13 @@ function IndeelKaart({ s, r, gekozen, onKies }) {
         {vervalt.map((y) => <span key={y.id} className="chip vervalt">{r.naam(y.profile_id)}</span>)}
         {Array.from({ length: Math.max(0, s.plekken - c.length) }).map((_, i) => <span key={i} className="chip open">open</span>)}
       </span>
-      <span className="indeel-voet">{aanm > 0 ? <b>{meervoud(aanm, "aanmelding", "aanmeldingen")} om uit te kiezen</b> : "Geen (andere) aanmeldingen"}<Icon n="pijl" /></span>
+      <span className="indeel-voet">{aanm > 0 ? <b>{aanm} aangemeld</b> : "Geen aanmeldingen"}<Icon n="pijl" /></span>
     </button>
   );
 }
 
 function ShiftDetail({ s, ctx, cur, tellingen }) {
-  const { r, actie } = ctx;
+  const { r, actie, zeg } = ctx;
   const [zoek, setZoek] = useState(null);       // null = dicht, anders zoektekst
   const [oproep, setOproep] = useState(null);   // null = dicht, anders berichttekst
   const c = r.conceptPerShift.get(s.id) || [], t = r.toewPerShift.get(s.id) || [];
@@ -249,13 +260,23 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
   const zoekers = t.filter((x) => x.status === "zoekt_vervanger");
   const n = (pid) => tellingen.get(pid)?.ingedeeld || 0;
   const opm = (pid) => <Opm tekst={r.opmerking(cur.id, pid)} />;
+  const los = (pid) => (r.persoon.get(pid)?.handmatig ? " · geen account" : "");
 
   const deelIn = (pid) => actie(doe(supabase.from("indeling_concept").insert({ shift_id: s.id, profile_id: pid })));
   const haalWeg = (rij) => actie(doe(supabase.from("indeling_concept").delete().eq("id", rij.id)));
 
+  const zoekSchoon = (zoek || "").trim().replace(/\s+/g, " ");
   const anderen = zoek === null ? [] : r.profiles
     .filter((p) => p.actief && !inConcept(p.id) && !kandidaten.some((a) => a.profile_id === p.id))
-    .filter((p) => p.naam.toLowerCase().includes(zoek.trim().toLowerCase()));
+    .filter((p) => p.naam.toLowerCase().includes(zoekSchoon.toLowerCase()));
+  const bestaatAl = r.profiles.some((p) => p.naam.toLowerCase() === zoekSchoon.toLowerCase());
+
+  // nieuw persoon zonder account aanmaken en meteen indelen
+  const voegToeEnDeelIn = async () => {
+    const { data, error } = await supabase.rpc("admin_voeg_persoon", { p_naam: zoekSchoon });
+    if (error) return zeg(foutTekst(error), "fout");
+    if (await deelIn(data)) { zeg(`${zoekSchoon} toegevoegd en ingedeeld. Informeer deze persoon zelf.`); setZoek(""); }
+  };
 
   return (
     <div className="detail">
@@ -267,16 +288,16 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
           return (
             <li key={x.id}>
               <span className="rij-naam"><b>{r.naam(x.profile_id)}</b>
-                <small>{nieuw ? "Concept: nog niet gepubliceerd" : "Gepubliceerd"} · nu {meervoud(n(x.profile_id), "dienst", "diensten")}</small>
+                <small>{nieuw ? "Concept" : "Gepubliceerd"} · nu {meervoud(n(x.profile_id), "dienst", "diensten")}{los(x.profile_id)}</small>
                 {opm(x.profile_id)}</span>
-              <Knop soort="rustig" klein icon="kruis" onClick={() => haalWeg(x)}>Weghalen</Knop>
+              <Knop soort="rustig" klein alleenIcon icon="kruis" onClick={() => haalWeg(x)}>{`${r.naam(x.profile_id)} weghalen`}</Knop>
             </li>
           );
         })}
         {vervalt.map((y) => (
           <li key={y.id} className="vervalt">
             <span className="rij-naam"><b>{r.naam(y.profile_id)}</b><small>Vervalt bij publiceren</small></span>
-            <Knop soort="rustig" klein disabled={vol} onClick={() => deelIn(y.profile_id)}>Terugzetten</Knop>
+            <Knop soort="rustig" klein alleenIcon icon="ongedaan" disabled={vol} onClick={() => deelIn(y.profile_id)}>{`${r.naam(y.profile_id)} terugzetten`}</Knop>
           </li>
         ))}
       </ul>
@@ -294,14 +315,14 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
                       {opm(a.profile_id)}</span>
                     <Knop soort="accent" klein icon="vink"
                       onClick={() => actie(rpc("keur_vervanging", { p_toewijzing: x.id, p_profile: a.profile_id }), "Goedgekeurd. Beiden hebben bericht gekregen.")}>
-                      Goedkeuren
+                      Akkoord
                     </Knop>
                   </li>
                 ))}
               </ul>
             )}
             <Knop soort="rustig" klein onClick={() => actie(rpc("houd_dienst", { p_toewijzing: x.id }), "Verzoek ingetrokken")}>
-              Verzoek intrekken: {r.naam(x.profile_id).split(" ")[0]} draait zelf
+              {r.naam(x.profile_id).split(" ")[0]} draait toch zelf
             </Knop>
           </div>
         );
@@ -315,7 +336,7 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
               <span className="rij-naam"><b>{r.naam(a.profile_id)}</b>
                 <small>nu {meervoud(n(a.profile_id), "dienst", "diensten")} · {meervoud(tellingen.get(a.profile_id)?.aangemeld || 0, "aanmelding", "aanmeldingen")}</small>
                 {opm(a.profile_id)}</span>
-              <Knop soort="primair" klein icon="plus" disabled={vol} onClick={() => deelIn(a.profile_id)}>Indelen</Knop>
+              <Knop soort="primair" klein alleenIcon icon="plus" disabled={vol} onClick={() => deelIn(a.profile_id)}>{`${r.naam(a.profile_id)} indelen`}</Knop>
             </li>
           ))}
         </ul>
@@ -323,49 +344,56 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
       {vol && kandidaten.length > 0 && <p className="klein-tekst">De dienst is vol. Haal eerst iemand weg om te wisselen.</p>}
 
       {zoek === null ? (
-        <Knop soort="tweede" breed icon="zoek" onClick={() => setZoek("")}>Iemand anders indelen</Knop>
+        <Knop soort="tweede" klein icon="zoek" onClick={() => setZoek("")}>Iemand anders</Knop>
       ) : (
         <div className="blok">
-          <label className="veld-groep"><span>Zoek op naam (ook wie zich niet heeft aangemeld)</span>
-            <input className="veld" autoFocus value={zoek} placeholder="Naam" onChange={(e) => setZoek(e.target.value)} /></label>
+          <div className="kopregel">
+            <input className="veld" autoFocus value={zoek} placeholder="Zoek of typ een nieuwe naam" aria-label="Zoek op naam of typ een nieuwe naam"
+              onChange={(e) => setZoek(e.target.value)} />
+            <Info>Hier staat iedereen, ook wie zich niet voor deze dienst heeft aangemeld. Staat iemand er niet bij? Typ de naam en voeg die persoon toe zonder account. Zo iemand krijgt geen meldingen: informeer die persoon zelf.</Info>
+            <Knop soort="rustig" klein alleenIcon icon="kruis" onClick={() => setZoek(null)}>Zoeken sluiten</Knop>
+          </div>
           <ul className="rijen scroll">
             {anderen.map((p) => (
               <li key={p.id}>
-                <span className="rij-naam"><b>{p.naam}</b><small>nu {meervoud(n(p.id), "dienst", "diensten")} · niet aangemeld</small>{opm(p.id)}</span>
-                <Knop soort="tweede" klein icon="plus" disabled={vol} onClick={() => deelIn(p.id)}>Indelen</Knop>
+                <span className="rij-naam"><b>{p.naam}</b><small>nu {meervoud(n(p.id), "dienst", "diensten")} · niet aangemeld{los(p.id)}</small>{opm(p.id)}</span>
+                <Knop soort="tweede" klein alleenIcon icon="plus" disabled={vol} onClick={() => deelIn(p.id)}>{`${p.naam} indelen`}</Knop>
               </li>
             ))}
             {anderen.length === 0 && <li><span className="klein-tekst">Niemand gevonden.</span></li>}
           </ul>
-          <Knop soort="rustig" klein onClick={() => setZoek(null)}>Sluiten</Knop>
+          {zoekSchoon.length >= 2 && !bestaatAl && (
+            <Knop soort="tweede" klein icon="plus" disabled={vol} onClick={voegToeEnDeelIn}>
+              {`Nieuw: “${zoekSchoon}” toevoegen en indelen`}
+            </Knop>
+          )}
         </div>
       )}
 
-      <h3 className="tussenkop">Oproep</h3>
-      {s.gepromoot_at && <p className="klein-tekst">Laatste oproep verstuurd op {fmtMoment(s.gepromoot_at)}. De dienst staat bij iedereen bovenaan onder “Hulp gezocht”.</p>}
+      <h3 className="tussenkop">Oproep
+        <Info>Een oproep stuurt een pushmelding naar iedereen met een account die nog niet op deze dienst staat of zich ervoor heeft aangemeld. De dienst staat daarna bij iedereen bovenaan onder “Hulp gezocht”. Dat kan alleen als de editie op Open staat.</Info></h3>
+      {s.gepromoot_at && <p className="klein-tekst">Laatste oproep: {fmtMoment(s.gepromoot_at)}</p>}
       {oproep === null ? (
         <div className="knoppen">
-          <Knop soort="tweede" icon="megafoon" onClick={() => setOproep("")} disabled={cur.status !== "open"}>
-            {s.gepromoot_at ? "Stuur opnieuw een oproep" : "Stuur een oproep"}
+          <Knop soort="tweede" klein icon="megafoon" onClick={() => setOproep("")} disabled={cur.status !== "open"}>
+            {s.gepromoot_at ? "Opnieuw oproepen" : "Stuur oproep"}
           </Knop>
-          {s.gepromoot_at && <Knop soort="rustig" onClick={() => actie(rpc("stop_promotie", { p_shift: s.id }), "Oproep gestopt")}>Stop oproep</Knop>}
+          {s.gepromoot_at && <Knop soort="rustig" klein onClick={() => actie(rpc("stop_promotie", { p_shift: s.id }), "Oproep gestopt")}>Stop oproep</Knop>}
         </div>
       ) : (
         <div className="blok">
-          <label className="veld-groep"><span>Bericht erbij (mag leeg blijven)</span>
-            <textarea className="veld" rows={3} maxLength={140} value={oproep} placeholder="Bijvoorbeeld: finaledag, het wordt gezellig druk!"
-              onChange={(e) => setOproep(e.target.value)} /></label>
-          <p className="klein-tekst">Iedereen die nog niet op deze dienst staat of zich ervoor heeft aangemeld, krijgt een pushmelding.</p>
+          <textarea className="veld" rows={2} maxLength={140} value={oproep} aria-label="Bericht bij de oproep (mag leeg blijven)"
+            placeholder="Bericht erbij (mag leeg). Bijvoorbeeld: finaledag, het wordt gezellig druk!"
+            onChange={(e) => setOproep(e.target.value)} />
           <div className="knoppen">
-            <Knop soort="accent" icon="megafoon"
+            <Knop soort="accent" klein icon="megafoon"
               onClick={async () => { if (await actie(rpc("promoot", { p_shift: s.id, p_tekst: oproep }), "Oproep verstuurd")) setOproep(null); }}>
-              Verstuur oproep
+              Verstuur
             </Knop>
-            <Knop soort="rustig" onClick={() => setOproep(null)}>Annuleren</Knop>
+            <Knop soort="rustig" klein onClick={() => setOproep(null)}>Annuleren</Knop>
           </div>
         </div>
       )}
-      {cur.status !== "open" && <p className="klein-tekst">Een oproep kan pas als de editie op Open staat.</p>}
     </div>
   );
 }
@@ -396,7 +424,7 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
   const [nieuwe, setNieuwe] = useState(null);
   const [dagDraft, setDagDraft] = useState("");
   const [nieuwVoor, setNieuwVoor] = useState(null);
-  const [draft, setDraft] = useState({ post: "Bar", start: "19.00", end: "sluit", cap: 2 });
+  const [draft, setDraft] = useState(dienstVoorstel([]));
   const [vraag, setVraag] = useState(null);
 
   const dagen = !cur ? [] : r.days.filter((d) => d.edition_id === cur.id).sort((a, b) => a.datum.localeCompare(b.datum));
@@ -405,6 +433,9 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
 
   const updEditie = (e, patch, ok) => actie(doe(supabase.from("editions").update(patch).eq("id", e.id)), ok);
   const updShift = (s, patch) => actie(doe(supabase.from("shifts").update(patch).eq("id", s.id)));
+  // de eindtijd moet na de begintijd liggen ("sluit" mag altijd)
+  const tijdFout = (start, eind) => (minuten(start) !== null && minuten(eind) !== null && minuten(eind) <= minuten(start)
+    ? "De eindtijd moet na de begintijd liggen" : null);
 
   const maakEditie = async () => {
     const naam = (nieuwe.naam || "").trim();
@@ -437,14 +468,21 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
 
   const voegDienstToe = async (dag) => {
     if (await actie(doe(supabase.from("shifts").insert({
-      day_id: dag.id, post: draft.post, start_tijd: draft.start.trim(), eind_tijd: draft.end.trim(), plekken: draft.cap })), "Dienst toegevoegd")) setNieuwVoor(null);
+      day_id: dag.id, post: draft.post, start_tijd: draft.start, eind_tijd: draft.end, plekken: draft.cap })), "Dienst toegevoegd")) setNieuwVoor(null);
   };
 
   return (
     <div className="kolom breed">
       <section className="kaart">
-        <h2 className="kaart-titel">Edities</h2>
-        <p className="klein-tekst">Vrijwilligers zien alleen edities die op <b>Open</b> staan. Concept is je werkversie, Gesloten is archief.</p>
+        <div className="kopregel">
+          <h2 className="kaart-titel">Edities</h2>
+          <Info>Vrijwilligers zien alleen edities die op <b>Open</b> staan. Concept is je werkversie, Gesloten is archief. Een nieuwe editie kan de dagen en diensten van een eerdere editie overnemen.</Info>
+          {!nieuwe && (
+            <span className="kopregel-acties">
+              <Knop soort="tweede" klein icon="plus" onClick={() => setNieuwe({ naam: "", start: vandaag(), kopieVan: cur?.id || "" })}>Nieuw</Knop>
+            </span>
+          )}
+        </div>
         <ul className="rijen">
           {r.editions.map((e) => (
             <li key={e.id} className={`editie-rij${cur?.id === e.id ? " gekozen" : ""}`}>
@@ -454,10 +492,11 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
                 onChange={(ev) => updEditie(e, { status: ev.target.value }, `${e.naam} staat nu op ${STATUS[ev.target.value]}`)}>
                 {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-              <Knop soort="rustig" klein onClick={() => setCurId(e.id)} disabled={cur?.id === e.id}>{cur?.id === e.id ? "Gekozen" : "Bewerk"}</Knop>
-              <Knop soort="rustig" klein icon="prullenbak" aria-label={`Verwijder ${e.naam}`}
+              <Knop soort="rustig" klein alleenIcon icon={cur?.id === e.id ? "vink" : "bewerk"} onClick={() => setCurId(e.id)} disabled={cur?.id === e.id}>
+                {cur?.id === e.id ? `${e.naam} is gekozen` : `Bewerk de dagen en diensten van ${e.naam}`}</Knop>
+              <Knop soort="rustig" klein alleenIcon icon="prullenbak"
                 onClick={() => setVraag({ titel: `Editie "${e.naam}" verwijderen?`, tekst: "Alle dagen, diensten, aanmeldingen en indelingen van deze editie verdwijnen. Dit kan niet ongedaan worden gemaakt.",
-                  ja: "Ja, verwijder de editie", doe: () => actie(doe(supabase.from("editions").delete().eq("id", e.id)), "Editie verwijderd") })}>Verwijder</Knop>
+                  ja: "Ja, verwijder de editie", doe: () => actie(doe(supabase.from("editions").delete().eq("id", e.id)), "Editie verwijderd") })}>{`Verwijder ${e.naam}`}</Knop>
             </li>
           ))}
         </ul>
@@ -476,13 +515,11 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
                 <input className="veld" type="date" value={nieuwe.start} onChange={(e) => setNieuwe({ ...nieuwe, start: e.target.value })} /></label>
             )}
             <div className="knoppen">
-              <Knop onClick={maakEditie}>Editie aanmaken</Knop>
-              <Knop soort="rustig" onClick={() => setNieuwe(null)}>Annuleren</Knop>
+              <Knop klein onClick={maakEditie}>Editie aanmaken</Knop>
+              <Knop soort="rustig" klein onClick={() => setNieuwe(null)}>Annuleren</Knop>
             </div>
           </div>
-        ) : (
-          <Knop soort="tweede" icon="plus" onClick={() => setNieuwe({ naam: "", start: vandaag(), kopieVan: cur?.id || "" })}>Nieuwe editie</Knop>
-        )}
+        ) : null}
       </section>
 
       {cur && (
@@ -491,56 +528,60 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
           {dagen.map((dag) => {
             const ss = r.shiftsPerDag.get(dag.id) || [];
             return (
-              <div className="kaart" key={dag.id}>
+              <div className="kaart dag-kaart" key={dag.id}>
                 <div className="dag-rij">
                   <h3 className="dagkop los">{fmtDag(dag.datum)}</h3>
-                  <Knop soort="rustig" klein icon="prullenbak"
+                  <Knop soort="rustig" klein alleenIcon icon="prullenbak"
                     onClick={() => setVraag({ titel: `${fmtDag(dag.datum)} verwijderen?`, tekst: "Alle diensten, aanmeldingen en indelingen van deze dag verdwijnen.",
-                      ja: "Ja, verwijder de dag", doe: () => actie(doe(supabase.from("days").delete().eq("id", dag.id)), "Dag verwijderd") })}>Dag verwijderen</Knop>
+                      ja: "Ja, verwijder de dag", doe: () => actie(doe(supabase.from("days").delete().eq("id", dag.id)), "Dag verwijderd") })}>{`${fmtDag(dag.datum)} verwijderen`}</Knop>
                 </div>
                 {ss.map((s) => (
                   <div className="dienst-bewerk" key={s.id}>
-                    <label><span>Post</span>
-                      <select className="veld" value={s.post} onChange={(e) => updShift(s, { post: e.target.value })}>
-                        {[...new Set([...POSTEN, s.post])].map((p) => <option key={p}>{p}</option>)}
-                      </select></label>
-                    <label><span>Van</span>
-                      <input className="veld tijd" defaultValue={s.start_tijd} inputMode="decimal"
-                        onBlur={(e) => e.target.value.trim() && e.target.value !== s.start_tijd && updShift(s, { start_tijd: e.target.value.trim() })} /></label>
-                    <label><span>Tot</span>
-                      <input className="veld tijd" defaultValue={s.eind_tijd}
-                        onBlur={(e) => e.target.value.trim() && e.target.value !== s.eind_tijd && updShift(s, { eind_tijd: e.target.value.trim() })} /></label>
-                    <label><span>Plekken</span>
-                      <Stepper waarde={s.plekken} label="Aantal plekken" onChange={(v) => updShift(s, { plekken: v })} /></label>
-                    <Knop soort="rustig" klein icon="prullenbak"
+                    <select className="veld post" value={s.post} aria-label="Post" onChange={(e) => updShift(s, { post: e.target.value })}>
+                      {[...new Set([...POSTEN, s.post])].map((p) => <option key={p}>{p}</option>)}
+                    </select>
+                    <span className="tijden">
+                      <TijdVeld label="Begintijd" waarde={s.start_tijd} onFout={(f) => zeg(f, "fout")}
+                        controle={(v) => tijdFout(v, s.eind_tijd)} onChange={(v) => updShift(s, { start_tijd: v })} />
+                      <span aria-hidden="true">–</span>
+                      <TijdVeld label="Eindtijd" magSluit waarde={s.eind_tijd} onFout={(f) => zeg(f, "fout")}
+                        controle={(v) => tijdFout(s.start_tijd, v)} onChange={(v) => updShift(s, { eind_tijd: v })} />
+                    </span>
+                    <span className="plekken" title="Aantal plekken"><Icon n="mensen" />
+                      <Stepper waarde={s.plekken} label="Aantal plekken" onChange={(v) => updShift(s, { plekken: v })} /></span>
+                    <Knop soort="rustig" klein alleenIcon icon="prullenbak"
                       onClick={() => (bezet(s) ? setVraag({ titel: "Dienst verwijderen?", tekst: "Er staan al mensen op deze dienst. Zij krijgen geen automatisch bericht.",
                         ja: "Ja, verwijder de dienst", doe: () => actie(doe(supabase.from("shifts").delete().eq("id", s.id)), "Dienst verwijderd") })
-                        : actie(doe(supabase.from("shifts").delete().eq("id", s.id)), "Dienst verwijderd"))}>Verwijder</Knop>
+                        : actie(doe(supabase.from("shifts").delete().eq("id", s.id)), "Dienst verwijderd"))}>{`Verwijder dienst ${tijdLabel(s)}`}</Knop>
                   </div>
                 ))}
                 {nieuwVoor === dag.id ? (
                   <div className="dienst-bewerk nieuw">
-                    <label><span>Post</span>
-                      <select className="veld" value={draft.post} onChange={(e) => setDraft({ ...draft, post: e.target.value })}>
-                        {POSTEN.map((p) => <option key={p}>{p}</option>)}</select></label>
-                    <label><span>Van</span><input className="veld tijd" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} /></label>
-                    <label><span>Tot</span><input className="veld tijd" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} /></label>
-                    <label><span>Plekken</span><Stepper waarde={draft.cap} label="Aantal plekken" onChange={(v) => setDraft({ ...draft, cap: v })} /></label>
-                    <div className="knoppen">
-                      <Knop klein onClick={() => voegDienstToe(dag)}>Toevoegen</Knop>
-                      <Knop soort="rustig" klein onClick={() => setNieuwVoor(null)}>Annuleren</Knop>
-                    </div>
+                    <select className="veld post" value={draft.post} aria-label="Post" onChange={(e) => setDraft({ ...draft, post: e.target.value })}>
+                      {[...new Set([...POSTEN, draft.post])].map((p) => <option key={p}>{p}</option>)}</select>
+                    <span className="tijden">
+                      <TijdVeld label="Begintijd" waarde={draft.start} onFout={(f) => zeg(f, "fout")}
+                        controle={(v) => tijdFout(v, draft.end)} onChange={(v) => setDraft({ ...draft, start: v })} />
+                      <span aria-hidden="true">–</span>
+                      <TijdVeld label="Eindtijd" magSluit waarde={draft.end} onFout={(f) => zeg(f, "fout")}
+                        controle={(v) => tijdFout(draft.start, v)} onChange={(v) => setDraft({ ...draft, end: v })} />
+                    </span>
+                    <span className="plekken" title="Aantal plekken"><Icon n="mensen" />
+                      <Stepper waarde={draft.cap} label="Aantal plekken" onChange={(v) => setDraft({ ...draft, cap: v })} /></span>
+                    <span className="knoppen">
+                      <Knop klein icon="vink" onClick={() => voegDienstToe(dag)}>Toevoegen</Knop>
+                      <Knop soort="rustig" klein alleenIcon icon="kruis" onClick={() => setNieuwVoor(null)}>Annuleren</Knop>
+                    </span>
                   </div>
                 ) : (
-                  <Knop soort="tweede" klein icon="plus" onClick={() => setNieuwVoor(dag.id)}>Dienst toevoegen</Knop>
+                  <Knop soort="tweede" klein icon="plus" onClick={() => { setDraft(dienstVoorstel(ss)); setNieuwVoor(dag.id); }}>Dienst</Knop>
                 )}
               </div>
             );
           })}
           <div className="kaart dag-nieuw">
-            <label className="veld-groep"><span>Nieuwe dag</span>
-              <input className="veld" type="date" value={dagDraft || nextDate(datums)} onChange={(e) => setDagDraft(e.target.value)} /></label>
-            <Knop soort="tweede" icon="plus" onClick={voegDagToe}>Dag toevoegen</Knop>
+            <input className="veld" type="date" aria-label="Datum van de nieuwe dag" value={dagDraft || nextDate(datums)} onChange={(e) => setDagDraft(e.target.value)} />
+            <Knop soort="tweede" klein icon="plus" onClick={voegDagToe}>Dag</Knop>
           </div>
         </section>
       )}
@@ -555,10 +596,13 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
    ===================================================================== */
 
 function Mensen({ ctx }) {
-  const { r, profiel, actie } = ctx;
+  const { r, profiel, actie, zeg } = ctx;
   const [leden, setLeden] = useState(null);
   const [zoek, setZoek] = useState("");
   const [kies, setKies] = useState(null);
+  const [nieuw, setNieuw] = useState(null);     // null = dicht, anders de naam
+  const [naam, setNaam] = useState(null);       // null = niet aan het hernoemen
+  const [weg, setWeg] = useState(false);
 
   useEffect(() => {
     let leeft = true;
@@ -566,30 +610,56 @@ function Mensen({ ctx }) {
     return () => { leeft = false; };
   }, [r.profiles]);
 
-  const diensten = useMemo(() => {
+  const tel = (rijen) => {
     const m = new Map();
-    for (const t of r.toewijzingen) m.set(t.profile_id, (m.get(t.profile_id) || 0) + 1);
+    for (const t of rijen) m.set(t.profile_id, (m.get(t.profile_id) || 0) + 1);
     return m;
-  }, [r.toewijzingen]);
+  };
+  const diensten = useMemo(() => tel(r.toewijzingen), [r.toewijzingen]);
+  const inConcept = useMemo(() => tel(r.concept), [r.concept]);
 
   if (!leden) return <div className="laden klein"><p>Laden…</p></div>;
-  const lijst = leden.filter((p) => `${p.naam} ${p.email}`.toLowerCase().includes(zoek.trim().toLowerCase()));
+  const lijst = leden.filter((p) => `${p.naam} ${p.email || ""}`.toLowerCase().includes(zoek.trim().toLowerCase()));
   const gekozen = kies && leden.find((p) => p.id === kies);
+  const sluit = () => { setKies(null); setNaam(null); };
+
+  const voegToe = async () => {
+    const { error } = await supabase.rpc("admin_voeg_persoon", { p_naam: nieuw });
+    if (error) return zeg(foutTekst(error), "fout");
+    zeg(`${nieuw.trim()} toegevoegd. Je kunt deze persoon nu indelen.`);
+    setNieuw(null); await r.laad();
+  };
 
   return (
     <div className="kolom breed">
-      <p className="uitleg">Iedereen die inlogt, komt in deze lijst. Je kunt iemand beheerder maken of de toegang blokkeren.</p>
-      <label className="veld-groep"><span>Zoek op naam of e-mailadres</span>
-        <input className="veld" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder={`${leden.length} mensen`} /></label>
+      <div className="kopregel">
+        <input className="veld" value={zoek} onChange={(e) => setZoek(e.target.value)} aria-label="Zoek op naam of e-mailadres"
+          placeholder={`Zoek in ${leden.length} mensen`} />
+        <Info>Iedereen die inlogt, komt vanzelf in deze lijst. Met de plus voeg je iemand toe zonder e-mailadres of account. Zo iemand kan niet inloggen en krijgt geen meldingen: je deelt die persoon zelf in en informeert die persoon ook zelf.</Info>
+        <Knop soort="primair" klein icon="plus" onClick={() => setNieuw("")}>Persoon</Knop>
+      </div>
+
+      {nieuw !== null && (
+        <form className="blok" onSubmit={(e) => { e.preventDefault(); if (nieuw.trim().length >= 2) voegToe(); }}>
+          <input className="veld" autoFocus value={nieuw} placeholder="Voornaam en achternaam" aria-label="Naam van de nieuwe persoon"
+            onChange={(e) => setNieuw(e.target.value)} />
+          <div className="knoppen">
+            <Knop klein icon="vink" disabled={nieuw.trim().length < 2} onClick={voegToe}>Toevoegen zonder account</Knop>
+            <Knop soort="rustig" klein onClick={() => setNieuw(null)}>Annuleren</Knop>
+          </div>
+        </form>
+      )}
+
       <ul className="kaart rijen mensen">
         {lijst.map((p) => (
           <li key={p.id}>
             <button type="button" className="mens" onClick={() => setKies(p.id)}>
-              <span className="rij-naam"><b>{p.naam || "(nog geen naam)"}{p.id === profiel.id && " (jij)"}</b><small>{p.email}</small></span>
+              <span className="rij-naam"><b>{p.naam || "(nog geen naam)"}{p.id === profiel.id && " (jij)"}</b>
+                <small>{p.handmatig ? "Geen account, zelf informeren" : p.email}</small></span>
               <span className="labels">
                 {p.is_admin && <Label kleur="blauw">Beheerder</Label>}
                 {!p.actief && <Label kleur="oranje">Geblokkeerd</Label>}
-                <Label>{meervoud(diensten.get(p.id) || 0, "dienst", "diensten")}</Label>
+                <span className="bezet" title="Gepubliceerde diensten"><Icon n="kalender" />{diensten.get(p.id) || 0}</span>
               </span>
               <Icon n="pijl" />
             </button>
@@ -599,26 +669,58 @@ function Mensen({ ctx }) {
       </ul>
 
       {gekozen && (
-        <Venster titel={gekozen.naam || gekozen.email} onSluit={() => setKies(null)}>
+        <Venster titel={gekozen.naam || gekozen.email} onSluit={sluit}>
           <dl className="gegevens">
-            <div><dt>E-mailadres</dt><dd>{gekozen.email}</dd></div>
-            <div><dt>Lid sinds</dt><dd>{fmtMoment(gekozen.created_at)}</dd></div>
-            <div><dt>Gepubliceerde diensten</dt><dd>{diensten.get(gekozen.id) || 0}</dd></div>
+            <div><dt>{gekozen.handmatig ? "Account" : "E-mailadres"}</dt>
+              <dd>{gekozen.handmatig ? "Geen. Krijgt geen meldingen: informeer deze persoon zelf." : gekozen.email}</dd></div>
+            <div><dt>In de lijst sinds</dt><dd>{fmtMoment(gekozen.created_at)}</dd></div>
+            <div><dt>Diensten</dt><dd>{diensten.get(gekozen.id) || 0} gepubliceerd · {inConcept.get(gekozen.id) || 0} in de indeling</dd></div>
           </dl>
-          <div className="knoppen stapel">
-            <Knop soort="tweede" breed icon="sleutel"
-              onClick={async () => { await actie(rpc("admin_zet_rol", { p_profile: gekozen.id, p_admin: !gekozen.is_admin }),
-                gekozen.is_admin ? "Beheerrol ingetrokken" : `${gekozen.naam} is nu beheerder`); setKies(null); }}>
-              {gekozen.is_admin ? "Beheerrol intrekken" : "Maak beheerder"}
-            </Knop>
-            <Knop soort={gekozen.actief ? "gevaar" : "tweede"} breed
-              onClick={async () => { await actie(rpc("admin_zet_actief", { p_profile: gekozen.id, p_actief: !gekozen.actief }),
-                gekozen.actief ? "Toegang geblokkeerd" : "Toegang hersteld"); setKies(null); }}>
-              {gekozen.actief ? "Toegang blokkeren" : "Toegang teruggeven"}
-            </Knop>
-          </div>
-          <p className="klein-tekst">Een geblokkeerd account kan niets meer zien of doen. Bestaande indelingen blijven staan tot je ze weghaalt.</p>
+
+          {naam !== null ? (
+            <form className="blok" onSubmit={(e) => e.preventDefault()}>
+              <input className="veld" autoFocus value={naam} aria-label="Naam" onChange={(e) => setNaam(e.target.value)} />
+              <div className="knoppen">
+                <Knop klein onClick={async () => { if (await actie(rpc("admin_hernoem", { p_profile: gekozen.id, p_naam: naam }), "Naam aangepast")) setNaam(null); }}>Opslaan</Knop>
+                <Knop soort="rustig" klein onClick={() => setNaam(null)}>Annuleren</Knop>
+              </div>
+            </form>
+          ) : (
+            <div className="knoppen stapel">
+              {gekozen.handmatig ? (
+                <Knop soort="tweede" breed icon="bewerk" onClick={() => setNaam(gekozen.naam)}>Naam wijzigen</Knop>
+              ) : (
+                <>
+                  <Knop soort="tweede" breed icon="sleutel"
+                    onClick={async () => { await actie(rpc("admin_zet_rol", { p_profile: gekozen.id, p_admin: !gekozen.is_admin }),
+                      gekozen.is_admin ? "Beheerrol ingetrokken" : `${gekozen.naam} is nu beheerder`); sluit(); }}>
+                    {gekozen.is_admin ? "Beheerrol intrekken" : "Maak beheerder"}
+                  </Knop>
+                  <Knop soort="tweede" breed
+                    onClick={async () => { await actie(rpc("admin_zet_actief", { p_profile: gekozen.id, p_actief: !gekozen.actief }),
+                      gekozen.actief ? "Toegang geblokkeerd" : "Toegang hersteld"); sluit(); }}>
+                    {gekozen.actief ? "Toegang blokkeren" : "Toegang teruggeven"}
+                  </Knop>
+                </>
+              )}
+              {gekozen.id !== profiel.id && (
+                <Knop soort="gevaar" breed icon="prullenbak" onClick={() => setWeg(true)}>Verwijderen</Knop>
+              )}
+            </div>
+          )}
+          {!gekozen.handmatig && (
+            <p className="klein-tekst">Blokkeren houdt iemand buiten; indelingen blijven staan. Verwijderen wist ook het account, maar iemand kan zich daarna opnieuw registreren.</p>
+          )}
         </Venster>
+      )}
+
+      {weg && gekozen && (
+        <Bevestig gevaar titel={`${gekozen.naam || gekozen.email} verwijderen?`} ja="Ja, verwijder"
+          tekst={`Alle aanmeldingen, indelingen en opmerkingen van deze persoon verdwijnen${gekozen.handmatig ? "" : ", net als het account"}. `
+            + `${(diensten.get(gekozen.id) || 0) > 0 ? `Let op: ${meervoud(diensten.get(gekozen.id), "gepubliceerde dienst komt", "gepubliceerde diensten komen")} weer open te staan, zonder melding. ` : ""}`
+            + "Dit kan niet ongedaan worden gemaakt."}
+          onJa={async () => { if (await actie(rpc("admin_verwijder", { p_profile: gekozen.id }), `${gekozen.naam || "Persoon"} verwijderd`)) sluit(); }}
+          onSluit={() => setWeg(false)} />
       )}
     </div>
   );
