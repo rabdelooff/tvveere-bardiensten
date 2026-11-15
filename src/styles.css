@@ -467,3 +467,6 @@ select.veld { padding-inline: .5rem .25rem; text-overflow: ellipsis; }
 .status-ok { flex-wrap: wrap; }
 .blok p { flex-wrap: wrap; align-items: center; }
 .blok p > span { flex: 1 1 0; min-width: 0; }
+
+.fout-tekst { color: var(--rood); font-weight: 600; }
+.gegevens dd .info-knop { vertical-align: middle; }

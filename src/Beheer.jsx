@@ -603,7 +603,9 @@ function Mensen({ ctx }) {
   const [leden, setLeden] = useState(null);
   const [zoek, setZoek] = useState("");
   const [kies, setKies] = useState(null);
-  const [nieuw, setNieuw] = useState(null);     // null = dicht, anders de naam
+  const [nieuw, setNieuw] = useState(null);     // null = dicht, anders { naam, mail }
+  const [mail, setMail] = useState(null);       // null = niet aan het bewerken
+  const [samenvoegen, setSamenvoegen] = useState(null);
   const [naam, setNaam] = useState(null);       // null = niet aan het hernoemen
   const [weg, setWeg] = useState(false);
 
@@ -624,13 +626,39 @@ function Mensen({ ctx }) {
   if (!leden) return <div className="laden klein"><p>Laden…</p></div>;
   const lijst = leden.filter((p) => `${p.naam} ${p.email || ""}`.toLowerCase().includes(zoek.trim().toLowerCase()));
   const gekozen = kies && leden.find((p) => p.id === kies);
-  const sluit = () => { setKies(null); setNaam(null); };
+  const sluit = () => { setKies(null); setNaam(null); setMail(null); };
+
+  // hoort dit adres al bij een account?
+  const accountMet = (adres) => leden.find((p) => !p.handmatig && (p.email || "").toLowerCase() === adres.trim().toLowerCase());
+  const geldigAdres = (adres) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adres.trim());
+  const nieuwAdres = nieuw?.mail.trim() || "";
+  const nieuwBezet = nieuwAdres ? accountMet(nieuwAdres) : null;
+  const nieuwFout = nieuwAdres && !geldigAdres(nieuwAdres) ? "Dit e-mailadres lijkt niet te kloppen" : null;
 
   const voegToe = async () => {
-    const { error } = await supabase.rpc("admin_voeg_persoon", { p_naam: nieuw });
+    const { data, error } = await supabase.rpc("admin_voeg_persoon", { p_naam: nieuw.naam });
     if (error) return zeg(foutTekst(error), "fout");
-    zeg(`${nieuw.trim()} toegevoegd. Je kunt deze persoon nu indelen.`);
-    setNieuw(null); await r.laad();
+    let tekst = `${nieuw.naam.trim()} toegevoegd. Je kunt deze persoon nu indelen.`;
+    if (nieuwAdres) {
+      const fout = await rpc("admin_zet_email", { p_profile: data, p_email: nieuwAdres });
+      tekst = fout ? `${nieuw.naam.trim()} toegevoegd, maar het e-mailadres is niet gekoppeld: ${fout}`
+        : `${nieuw.naam.trim()} toegevoegd. Na het eerste inloggen met dat adres is deze persoon automatisch gekoppeld.`;
+    }
+    zeg(tekst); setNieuw(null); await r.laad();
+  };
+
+  // adres koppelen, wijzigen of ontkoppelen bij iemand zonder account
+  const zetAdres = async (adres) => {
+    const { data, error } = await supabase.rpc("admin_zet_email", { p_profile: gekozen.id, p_email: adres });
+    if (error) return zeg(foutTekst(error), "fout");
+    zeg(data === "samengevoegd" ? `${gekozen.naam} is samengevoegd met het bestaande account`
+      : data === "ontkoppeld" ? "E-mailadres ontkoppeld" : "E-mailadres gekoppeld");
+    sluit(); await r.laad();
+  };
+  const bewaarAdres = () => {
+    if (!geldigAdres(mail)) return zeg("Dit e-mailadres lijkt niet te kloppen", "fout");
+    const account = accountMet(mail);
+    return account ? setSamenvoegen(account) : zetAdres(mail);
   };
 
   return (
@@ -638,16 +666,22 @@ function Mensen({ ctx }) {
       <div className="kopregel">
         <input className="veld" value={zoek} onChange={(e) => setZoek(e.target.value)} aria-label="Zoek op naam of e-mailadres"
           placeholder={`Zoek (${leden.length})`} />
-        <Info>Iedereen die inlogt, komt vanzelf in deze lijst. Met de plus voeg je iemand toe zonder e-mailadres of account. Zo iemand kan niet inloggen en krijgt geen meldingen: je deelt die persoon zelf in en informeert die persoon ook zelf.</Info>
-        <Knop soort="primair" klein icon="plus" onClick={() => setNieuw("")}>Persoon</Knop>
+        <Info>Iedereen die inlogt, komt vanzelf in deze lijst. Met de plus voeg je iemand toe die niet zelf inlogt. Zo iemand krijgt geen meldingen: je deelt die persoon zelf in en informeert die persoon ook zelf. Heb je wel een e-mailadres, vul dat dan in: logt die persoon later in met dat adres, dan wordt alles automatisch gekoppeld.</Info>
+        <Knop soort="primair" klein icon="plus" onClick={() => setNieuw({ naam: "", mail: "" })}>Persoon</Knop>
       </div>
 
       {nieuw !== null && (
-        <form className="blok" onSubmit={(e) => { e.preventDefault(); if (nieuw.trim().length >= 2) voegToe(); }}>
-          <input className="veld" autoFocus value={nieuw} placeholder="Voornaam en achternaam" aria-label="Naam van de nieuwe persoon"
-            onChange={(e) => setNieuw(e.target.value)} />
+        <form className="blok" onSubmit={(e) => e.preventDefault()}>
+          <input className="veld" autoFocus value={nieuw.naam} placeholder="Voornaam en achternaam" aria-label="Naam van de nieuwe persoon"
+            onChange={(e) => setNieuw({ ...nieuw, naam: e.target.value })} />
+          <input className="veld" type="email" inputMode="email" autoComplete="off" value={nieuw.mail} placeholder="E-mailadres (mag leeg)"
+            aria-label="E-mailadres van de nieuwe persoon (mag leeg)" aria-invalid={!!(nieuwFout || nieuwBezet) || undefined}
+            onChange={(e) => setNieuw({ ...nieuw, mail: e.target.value })} />
+          {(nieuwFout || nieuwBezet) && (
+            <p className="klein-tekst fout-tekst">{nieuwFout || `Dit adres hoort al bij ${nieuwBezet.naam}, die staat al in de lijst.`}</p>
+          )}
           <div className="knoppen">
-            <Knop klein icon="vink" disabled={nieuw.trim().length < 2} onClick={voegToe}>Toevoegen zonder account</Knop>
+            <Knop klein icon="vink" disabled={nieuw.naam.trim().length < 2 || !!nieuwFout || !!nieuwBezet} onClick={voegToe}>Toevoegen</Knop>
             <Knop soort="rustig" klein onClick={() => setNieuw(null)}>Annuleren</Knop>
           </div>
         </form>
@@ -658,7 +692,7 @@ function Mensen({ ctx }) {
           <li key={p.id}>
             <button type="button" className="mens" onClick={() => setKies(p.id)}>
               <span className="rij-naam"><b>{p.naam || "(nog geen naam)"}{p.id === profiel.id && " (jij)"}</b>
-                <small>{p.handmatig ? "Geen account, zelf informeren" : <Mail adres={p.email} />}</small></span>
+                <small>{p.handmatig ? (p.email ? <><Mail adres={p.email} /> · nog niet ingelogd</> : "Geen account, zelf informeren") : <Mail adres={p.email} />}</small></span>
               <span className="labels">
                 {p.is_admin && <Label kleur="blauw">Beheerder</Label>}
                 {!p.actief && <Label kleur="oranje">Geblokkeerd</Label>}
@@ -675,12 +709,25 @@ function Mensen({ ctx }) {
         <Venster titel={gekozen.naam || gekozen.email} onSluit={sluit}>
           <dl className="gegevens">
             <div><dt>{gekozen.handmatig ? "Account" : "E-mailadres"}</dt>
-              <dd>{gekozen.handmatig ? "Geen. Krijgt geen meldingen: informeer deze persoon zelf." : <Mail adres={gekozen.email} />}</dd></div>
+              <dd>{gekozen.handmatig ? "Nog geen. Krijgt geen meldingen: informeer deze persoon zelf." : <Mail adres={gekozen.email} />}</dd></div>
+            {gekozen.handmatig && (
+              <div><dt>Gekoppeld e-mailadres</dt>
+                <dd>{gekozen.email ? <><Mail adres={gekozen.email} /> <Info>Zodra deze persoon voor het eerst inlogt met dit adres (via de link of code in de mail), wordt het account automatisch gekoppeld en blijven alle aanmeldingen en indelingen staan.</Info></> : "Geen"}</dd></div>
+            )}
             <div><dt>In de lijst sinds</dt><dd>{fmtMoment(gekozen.created_at)}</dd></div>
             <div><dt>Diensten</dt><dd>{diensten.get(gekozen.id) || 0} gepubliceerd · {inConcept.get(gekozen.id) || 0} in de indeling</dd></div>
           </dl>
 
-          {naam !== null ? (
+          {mail !== null ? (
+            <form className="blok" onSubmit={(e) => { e.preventDefault(); bewaarAdres(); }}>
+              <input className="veld" type="email" inputMode="email" autoComplete="off" autoFocus value={mail} placeholder="E-mailadres"
+                aria-label="E-mailadres" onChange={(e) => setMail(e.target.value)} />
+              <div className="knoppen">
+                <Knop klein disabled={!mail.trim()} onClick={bewaarAdres}>Koppelen</Knop>
+                <Knop soort="rustig" klein onClick={() => setMail(null)}>Annuleren</Knop>
+              </div>
+            </form>
+          ) : naam !== null ? (
             <form className="blok" onSubmit={(e) => e.preventDefault()}>
               <input className="veld" autoFocus value={naam} aria-label="Naam" onChange={(e) => setNaam(e.target.value)} />
               <div className="knoppen">
@@ -691,7 +738,11 @@ function Mensen({ ctx }) {
           ) : (
             <div className="knoppen stapel">
               {gekozen.handmatig ? (
-                <Knop soort="tweede" breed icon="bewerk" onClick={() => setNaam(gekozen.naam)}>Naam wijzigen</Knop>
+                <>
+                  <Knop soort="tweede" breed icon="mail" onClick={() => setMail(gekozen.email || "")}>{gekozen.email ? "E-mailadres wijzigen" : "E-mailadres koppelen"}</Knop>
+                  {gekozen.email && <Knop soort="tweede" breed onClick={() => zetAdres("")}>E-mailadres ontkoppelen</Knop>}
+                  <Knop soort="tweede" breed icon="bewerk" onClick={() => setNaam(gekozen.naam)}>Naam wijzigen</Knop>
+                </>
               ) : (
                 <>
                   <Knop soort="tweede" breed icon="sleutel"
@@ -715,6 +766,12 @@ function Mensen({ ctx }) {
             <p className="klein-tekst">Blokkeren houdt iemand buiten; indelingen blijven staan. Verwijderen wist ook het account, maar iemand kan zich daarna opnieuw registreren.</p>
           )}
         </Venster>
+      )}
+
+      {samenvoegen && gekozen && (
+        <Bevestig titel={`Samenvoegen met ${samenvoegen.naam}?`} ja="Ja, voeg samen"
+          tekst={`Dit adres hoort al bij het account van ${samenvoegen.naam}. Alle aanmeldingen, indelingen en opmerkingen van ${gekozen.naam} worden overgezet naar dat account, en ${gekozen.naam} verdwijnt als aparte persoon. Dit kan niet ongedaan worden gemaakt.`}
+          onJa={() => zetAdres(mail)} onSluit={() => setSamenvoegen(null)} />
       )}
 
       {weg && gekozen && (
