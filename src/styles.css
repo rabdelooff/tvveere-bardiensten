@@ -291,7 +291,7 @@ select.veld { appearance: auto; }
 }
 .publiceer-balk > span { flex: 1 1 9rem; }
 
-.raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .5rem; }
+.raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr)); gap: .5rem; }
 .indeel { text-align: left; gap: .375rem; padding: .5rem .625rem; border-width: 2px; }
 .indeel.gekozen { border-color: var(--blauw); box-shadow: 0 0 0 3px rgba(42, 56, 148, .2); }
 .indeel-kop { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
@@ -299,7 +299,7 @@ select.veld { appearance: auto; }
 .teller { font-weight: 800; font-size: .8125rem; padding: .0625rem .5rem; border-radius: 99rem; background: var(--oranjeL); color: var(--oranjeD); font-variant-numeric: tabular-nums; }
 .teller.vol { background: var(--groenL); color: var(--groen); }
 .chips { display: flex; flex-wrap: wrap; gap: .25rem; }
-.chip { padding: .125rem .5rem; border-radius: 99rem; background: var(--blauw); color: #fff; font-weight: 600; font-size: .8125rem; }
+.chip { max-width: 100%; padding: .125rem .5rem; border-radius: 99rem; background: var(--blauw); color: #fff; font-weight: 600; font-size: .8125rem; }
 .chip i { font-style: normal; font-weight: 500; opacity: .85; }
 .chip.nieuw { background: var(--wit); color: var(--blauwD); border: 2px dashed var(--blauw); padding: 0 .375rem; }
 .chip.vervalt { background: #EFECE0; color: var(--grijs); text-decoration: line-through; }
@@ -322,11 +322,11 @@ select.veld { appearance: auto; }
 .tabel { width: 100%; border-collapse: collapse; }
 .tabel th { text-align: left; font-size: .8125rem; color: var(--grijs); padding: .375rem .5rem .375rem 0; border-bottom: 2px solid var(--lijn); }
 .tabel td { padding: .3125rem .5rem .3125rem 0; border-bottom: 1px solid var(--lijn); }
-.tabel th:not(:first-child), .tabel td:not(:first-child) { text-align: right; width: 4.75rem; font-variant-numeric: tabular-nums; }
+.tabel th:not(:first-child), .tabel td:not(:first-child) { text-align: right; width: 1%; white-space: nowrap; padding-left: .5rem; font-variant-numeric: tabular-nums; }
 
 .zij { display: none; }
 
-.editie-rij .veld:first-child { flex: 1 1 14rem; }
+.editie-rij .veld:first-child { flex: 1 1 17rem; }
 .editie-rij.gekozen { background: #F5F6FC; margin: 0 -.5rem; padding-inline: .5rem !important; border-radius: .5rem; }
 .dag-rij { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; }
 .dienst-bewerk { display: flex; flex-wrap: wrap; gap: .375rem .5rem; align-items: center; padding-top: .5rem; border-top: 1px solid var(--lijn); }
@@ -431,7 +431,11 @@ select.veld { appearance: auto; }
 .tijden { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .25rem .375rem; }
 .plekken { display: inline-flex; align-items: center; gap: .375rem; color: var(--grijs); }
 .veld.post { width: auto; flex: 1 1 6rem; min-width: 0; max-width: 11rem; }
-@media (max-width: 599px) { .dienst-bewerk .tijden { order: 5; flex: 1 0 100%; } }
+@media (max-width: 599px) {
+  .dienst-bewerk .tijden { order: 5; flex: 1 1 auto; }
+  .dienst-bewerk > .knop.icoon { order: 6; }
+  .dienst-bewerk .plekken { margin-left: auto; }
+}
 .dienst-bewerk > .knop.icoon { margin-left: auto; }
 
 /* --- rooster opzetten: de dag blijft bovenin de kaart staan --- */
@@ -443,3 +447,17 @@ select.veld { appearance: auto; }
 .dag-kaart > .knop { align-self: flex-start; }
 .dienst-bewerk.nieuw > .knoppen { order: 6; margin-left: auto; }
 @media (min-width: 900px) { .nav-merk { font-size: .9375rem; } }
+
+/* --- niets afkappen op smalle schermen --- */
+select.veld { padding-inline: .5rem .25rem; text-overflow: ellipsis; }
+.knop.klein { text-align: left; }
+@media (max-width: 599px) {
+  .werkbalk > .editie-keuze { flex: 1 1 100%; max-width: none; }
+  .werkbalk > .cijfers { flex: 1 1 auto; }
+}
+@media (max-width: 419px) {
+  .dienst-bewerk .plekken > .icon { display: none; }
+  .dienst-bewerk { gap: .375rem; }
+  .blok .veld, .editie-rij .veld { padding-inline: .5rem; }
+}
+@media (max-width: 349px) { .venster-kop h2 { font-size: .9375rem; } }
