@@ -95,7 +95,7 @@ export default function App() {
       <p className="uitleg">De koppeling met de database ontbreekt (VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY).</p>
     </Scherm>
   );
-  if (sessie === undefined) return <div className="laden"><Logo size={56} /><p>Even geduld…</p></div>;
+  if (sessie === undefined) return <div className="laden"><Logo size={112} /><p>Even geduld…</p></div>;
   if (!sessie) return <Login linkFout={linkFout} />;
   if (profielFout) return (
     <Scherm titel="Dat lukte niet">
@@ -106,7 +106,7 @@ export default function App() {
       </div>
     </Scherm>
   );
-  if (!profiel) return <div className="laden"><Logo size={56} /><p>Even geduld…</p></div>;
+  if (!profiel) return <div className="laden"><Logo size={112} /><p>Even geduld…</p></div>;
   if (!profiel.actief) return (
     <Scherm titel="Geen toegang">
       <p className="uitleg">Je account is geblokkeerd. Neem contact op met de beheerder van de bardiensten.</p>
@@ -146,7 +146,7 @@ export default function App() {
       </header>
 
       <nav className="nav" aria-label="Hoofdmenu">
-        <div className="nav-merk"><Logo size={44} /><div><div className="eyebrow">TV Veere</div><b>Bardiensten</b></div></div>
+        <div className="nav-merk"><Logo size={48} /><div><div className="eyebrow">TV Veere</div><b>Bardiensten</b></div></div>
         {tabs.map(([k, label, icon]) => (
           <a key={k} href={`#/${k}`} className={`nav-item${k === "meldingen" ? " alleen-desktop" : ""}`}
             aria-current={pagina === k ? "page" : undefined}>

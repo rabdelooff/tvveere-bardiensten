@@ -6,7 +6,7 @@ import { Icon, Knop, Logo, Melding } from "./ui";
 const Kader = ({ children }) => (
   <div className="login">
     <div className="login-kop">
-      <Logo size={64} />
+      <Logo size={84} />
       <div>
         <div className="eyebrow">Tennis Vereniging Veere</div>
         <h1>Bardiensten</h1>

@@ -37,12 +37,9 @@ export const Icon = ({ n, size = "1.25em" }) => (
     strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{P[n]}</svg>
 );
 
+/* Het logo van de vereniging. Naast het logo staat altijd al de naam, dus het is decoratief. */
 export const Logo = ({ size = 44 }) => (
-  <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" className="logo">
-    <rect width="64" height="64" rx="14" fill="#2A3894" />
-    <circle cx="32" cy="32" r="19" fill="#fff" />
-    <path d="M21 16.5c9 8 9 23 0 31M43 16.5c-9 8-9 23 0 31" fill="none" stroke="#EE6A1E" strokeWidth="2.6" strokeLinecap="round" />
-  </svg>
+  <img className="logo" src="/logo.png" width={size} height={size} alt="" decoding="async" />
 );
 
 /* --- knop met "bezig"-toestand: voorkomt dubbel tikken --- */
