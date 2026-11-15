@@ -10,6 +10,9 @@ const POSTEN = ["Bar", "Keuken", "BBQ", "Wedstrijdtafel"];
 const Opm = ({ tekst }) => (tekst
   ? <span className="opm"><Icon n="notitie" /><span><span className="sr">Opmerking: </span>{tekst}</span></span> : null);
 
+/* Lang e-mailadres: breek bij voorkeur af vóór de @ in plaats van midden in een naam. */
+const Mail = ({ adres }) => { const [naam, domein] = String(adres || "").split("@"); return domein ? <>{naam}<wbr />@{domein}</> : naam; };
+
 function useBreed() {
   const mq = "(min-width: 1100px)";
   const [breed, setBreed] = useState(() => window.matchMedia(mq).matches);
@@ -41,7 +44,7 @@ export function Beheer(ctx) {
     <label className="editie-keuze">
       <span className="sr">Editie</span>
       <select className="veld" value={cur?.id || ""} onChange={(e) => setCurId(e.target.value)}>
-        {r.editions.map((e) => <option key={e.id} value={e.id}>{e.naam} · {STATUS[e.status]}</option>)}
+        {r.editions.map((e) => <option key={e.id} value={e.id}>{e.naam}{e.status === "open" ? "" : ` (${STATUS[e.status].toLowerCase()})`}</option>)}
       </select>
     </label>
   );
@@ -238,9 +241,9 @@ function IndeelKaart({ s, r, gekozen, onKies }) {
       <span className="chips">
         {c.map((x) => {
           const nieuw = !t.some((y) => y.profile_id === x.profile_id);
-          return <span key={x.id} className={`chip${nieuw ? " nieuw" : ""}`}>{r.naam(x.profile_id)}{nieuw && <i> · concept</i>}</span>;
+          return <span key={x.id} className={`chip${nieuw ? " nieuw" : ""}`} title={`${r.naam(x.profile_id)}${nieuw ? " (concept, nog niet gepubliceerd)" : ""}`}>{r.naam(x.profile_id)}{nieuw && <span className="sr"> (concept)</span>}</span>;
         })}
-        {vervalt.map((y) => <span key={y.id} className="chip vervalt">{r.naam(y.profile_id)}</span>)}
+        {vervalt.map((y) => <span key={y.id} className="chip vervalt" title={`${r.naam(y.profile_id)} (vervalt bij publiceren)`}>{r.naam(y.profile_id)}</span>)}
         {Array.from({ length: Math.max(0, s.plekken - c.length) }).map((_, i) => <span key={i} className="chip open">open</span>)}
       </span>
       <span className="indeel-voet">{aanm > 0 ? <b>{aanm} aangemeld</b> : "Geen aanmeldingen"}<Icon n="pijl" /></span>
@@ -364,7 +367,7 @@ function ShiftDetail({ s, ctx, cur, tellingen }) {
           </ul>
           {zoekSchoon.length >= 2 && !bestaatAl && (
             <Knop soort="tweede" klein icon="plus" disabled={vol} onClick={voegToeEnDeelIn}>
-              {`Nieuw: “${zoekSchoon}” toevoegen en indelen`}
+              {`“${zoekSchoon}” toevoegen`}
             </Knop>
           )}
         </div>
@@ -503,7 +506,7 @@ function Opzet({ ctx, cur, setCurId, editieKeuze }) {
         {nieuwe ? (
           <div className="blok">
             <label className="veld-groep"><span>Naam</span>
-              <input className="veld" autoFocus placeholder="Bijvoorbeeld Veere Open zomer 2027" value={nieuwe.naam}
+              <input className="veld" autoFocus placeholder="Bijv. Veere Open 2027" value={nieuwe.naam}
                 onChange={(e) => setNieuwe({ ...nieuwe, naam: e.target.value })} /></label>
             <label className="veld-groep"><span>Dagen en diensten overnemen van</span>
               <select className="veld" value={nieuwe.kopieVan} onChange={(e) => setNieuwe({ ...nieuwe, kopieVan: e.target.value })}>
@@ -634,7 +637,7 @@ function Mensen({ ctx }) {
     <div className="kolom breed">
       <div className="kopregel">
         <input className="veld" value={zoek} onChange={(e) => setZoek(e.target.value)} aria-label="Zoek op naam of e-mailadres"
-          placeholder={`Zoek in ${leden.length} mensen`} />
+          placeholder={`Zoek (${leden.length})`} />
         <Info>Iedereen die inlogt, komt vanzelf in deze lijst. Met de plus voeg je iemand toe zonder e-mailadres of account. Zo iemand kan niet inloggen en krijgt geen meldingen: je deelt die persoon zelf in en informeert die persoon ook zelf.</Info>
         <Knop soort="primair" klein icon="plus" onClick={() => setNieuw("")}>Persoon</Knop>
       </div>
@@ -655,7 +658,7 @@ function Mensen({ ctx }) {
           <li key={p.id}>
             <button type="button" className="mens" onClick={() => setKies(p.id)}>
               <span className="rij-naam"><b>{p.naam || "(nog geen naam)"}{p.id === profiel.id && " (jij)"}</b>
-                <small>{p.handmatig ? "Geen account, zelf informeren" : p.email}</small></span>
+                <small>{p.handmatig ? "Geen account, zelf informeren" : <Mail adres={p.email} />}</small></span>
               <span className="labels">
                 {p.is_admin && <Label kleur="blauw">Beheerder</Label>}
                 {!p.actief && <Label kleur="oranje">Geblokkeerd</Label>}
@@ -672,7 +675,7 @@ function Mensen({ ctx }) {
         <Venster titel={gekozen.naam || gekozen.email} onSluit={sluit}>
           <dl className="gegevens">
             <div><dt>{gekozen.handmatig ? "Account" : "E-mailadres"}</dt>
-              <dd>{gekozen.handmatig ? "Geen. Krijgt geen meldingen: informeer deze persoon zelf." : gekozen.email}</dd></div>
+              <dd>{gekozen.handmatig ? "Geen. Krijgt geen meldingen: informeer deze persoon zelf." : <Mail adres={gekozen.email} />}</dd></div>
             <div><dt>In de lijst sinds</dt><dd>{fmtMoment(gekozen.created_at)}</dd></div>
             <div><dt>Diensten</dt><dd>{diensten.get(gekozen.id) || 0} gepubliceerd · {inConcept.get(gekozen.id) || 0} in de indeling</dd></div>
           </dl>
