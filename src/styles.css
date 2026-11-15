@@ -379,3 +379,13 @@ select.veld { appearance: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* --- opmerking van een vrijwilliger voor de beheerder --- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.opmerking { display: flex; flex-direction: column; gap: .75rem; }
+.opmerking .kaart-titel { display: flex; align-items: center; gap: .5rem; }
+.opm-tekst { background: var(--oranjeL); border-radius: .75rem; padding: .75rem .875rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.opm { display: flex; gap: .375rem; align-items: flex-start; margin-top: .25rem; padding: .25rem .5rem; border-radius: .5rem;
+  background: var(--oranjeL); color: var(--oranjeD); font-size: .875rem; font-weight: 600; text-align: left;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.opm .icon { flex: none; margin-top: .1em; }

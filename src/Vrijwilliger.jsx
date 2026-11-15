@@ -159,6 +159,67 @@ function MijnDienst({ s, dag, t, ctx }) {
   );
 }
 
+/* --- algemene opmerking voor de beheerder, per open editie --- */
+
+const OPM_MAX = 500;
+
+function OpmerkingKaart({ editie, ctx, toonEditie }) {
+  const { r, profiel, actie } = ctx;
+  const huidig = r.opmerking(editie.id, profiel.id);
+  const [tekst, setTekst] = useState(null);   // null = niet aan het bewerken
+  const [vraag, setVraag] = useState(false);
+  const veldId = `opm-${editie.id}`;
+
+  const bewaar = async () => {
+    if (!tekst.trim()) return setTekst(null);
+    if (await actie(rpc("zet_opmerking", { p_edition: editie.id, p_tekst: tekst }), "Opgeslagen. De beheerder ziet je opmerking bij het indelen.")) setTekst(null);
+  };
+
+  return (
+    <section className="kaart opmerking">
+      <h2 className="kaart-titel"><Icon n="notitie" /> Opmerking voor de beheerder{toonEditie && ` · ${editie.naam}`}</h2>
+      {tekst !== null ? (
+        <form className="veld-groep" onSubmit={(e) => { e.preventDefault(); bewaar(); }}>
+          <label htmlFor={veldId}>Wat moet de beheerder weten bij het indelen?</label>
+          <textarea id={veldId} className="veld" rows={3} maxLength={OPM_MAX} autoFocus value={tekst}
+            placeholder="Bijvoorbeeld: ik meld me aan voor vier diensten, maar wil er maximaal één draaien."
+            onChange={(e) => setTekst(e.target.value)} />
+          <p className="klein-tekst">Alleen de beheerders lezen dit. {tekst.length}/{OPM_MAX} tekens.</p>
+          <div className="knoppen">
+            <Knop onClick={bewaar} disabled={!tekst.trim()}>Opslaan</Knop>
+            <Knop soort="rustig" onClick={() => setTekst(null)}>Annuleren</Knop>
+          </div>
+        </form>
+      ) : huidig ? (
+        <>
+          <p className="opm-tekst">{huidig}</p>
+          <div className="knoppen">
+            <Knop soort="tweede" icon="bewerk" onClick={() => setTekst(huidig)}>Wijzigen</Knop>
+            <Knop soort="rustig" onClick={() => setVraag(true)}>Verwijderen</Knop>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="klein-tekst">Wil je iets kwijt over je aanmeldingen? Bijvoorbeeld dat je je voor meerdere diensten aanmeldt, maar er maximaal één wilt draaien.</p>
+          <Knop soort="tweede" icon="plus" onClick={() => setTekst("")}>Opmerking toevoegen</Knop>
+        </>
+      )}
+      {vraag && (
+        <Bevestig titel="Opmerking verwijderen?" ja="Ja, verwijder" nee="Nee, laat staan" tekst={huidig}
+          onJa={() => actie(rpc("zet_opmerking", { p_edition: editie.id, p_tekst: "" }), "Opmerking verwijderd")}
+          onSluit={() => setVraag(false)} />
+      )}
+    </section>
+  );
+}
+
+function Opmerkingen({ komend, ctx, alleenMet }) {
+  const { r, profiel } = ctx;
+  const edities = [...new Set(komend.map(({ dag }) => dag.edition_id))].map((id) => r.editieVan.get(id)).filter(Boolean)
+    .filter((e) => !alleenMet || r.opmerking(e.id, profiel.id));
+  return edities.map((e) => <OpmerkingKaart key={e.id} editie={e} ctx={ctx} toonEditie={edities.length > 1} />);
+}
+
 /* --- installeren en meldingen aanzetten --- */
 
 let installVraag = null;
@@ -320,6 +381,8 @@ export function Mijn(ctx) {
         </section>
       )}
 
+      <Opmerkingen komend={komend} ctx={ctx} alleenMet={aangemeld.length === 0} />
+
       <Knop soort={mijn.length || aangemeld.length ? "tweede" : "primair"} breed icon="lijst" onClick={() => ga("diensten")}>
         Bekijk alle diensten en meld je aan
       </Knop>
@@ -360,6 +423,7 @@ export function Diensten(ctx) {
         <b>{edities.join(" · ")}</b><br />
         Tik op <b>Ik kan deze dienst</b> bij elke dienst waarop je kunt. De beheerder maakt daarna het rooster en laat je weten wanneer je bent ingedeeld.
       </p>
+      <Opmerkingen komend={komend} ctx={ctx} />
       <div className="keuze" role="group" aria-label="Welke diensten wil je zien">
         <button type="button" aria-pressed={filter === "alle"} onClick={() => setFilter("alle")}>Alle diensten</button>
         <button type="button" aria-pressed={filter === "nodig"} onClick={() => setFilter("nodig")}>Hulp nodig ({telling})</button>
@@ -387,7 +451,7 @@ export function Meldingen({ r, ga }) {
   }, [ongelezen]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!r.meldingen.length) return <Leeg titel="Nog geen meldingen">Hier zie je berichten over je diensten.</Leeg>;
-  const icoon = { rooster: "kalender", herinnering: "klok", promotie: "megafoon", vervanger: "ruil", aanbod: "ruil" };
+  const icoon = { rooster: "kalender", herinnering: "klok", promotie: "megafoon", vervanger: "ruil", aanbod: "ruil", opmerking: "notitie" };
   return (
     <ul className="meldingen">
       {r.meldingen.map((m) => (
@@ -461,7 +525,7 @@ export function Meer(ctx) {
             <input type="checkbox" checked={profiel.meld_aanmeldingen} onChange={(e) => zetVoorkeur(e.target.checked)} />
             <span>Stuur mij een melding bij elke nieuwe of ingetrokken aanmelding</span>
           </label>
-          <p className="klein-tekst">Berichten over vervangers krijg je altijd.</p>
+          <p className="klein-tekst">Berichten over vervangers en opmerkingen van vrijwilligers krijg je altijd.</p>
         </section>
       )}
 

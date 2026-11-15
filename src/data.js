@@ -4,7 +4,7 @@ import { foutTekst, startMinuten, vandaag } from "./util";
 
 const LEEG = {
   editions: [], days: [], shifts: [], profiles: [], aanmeldingen: [],
-  toewijzingen: [], aanbod: [], meldingen: [], concept: [],
+  toewijzingen: [], aanbod: [], meldingen: [], concept: [], opmerkingen: [],
 };
 
 const groepeer = (rijen, sleutel) => {
@@ -33,13 +33,14 @@ export function useRooster(profiel) {
       q("aanmeldingen"), q("toewijzingen"), q("vervang_aanbod"),
       supabase.from("meldingen").select("*").order("created_at", { ascending: false }).limit(40),
       isAdmin ? q("indeling_concept") : Promise.resolve({ data: [] }),
+      q("opmerkingen"),
     ]);
     const err = res.find((r) => r.error);
     if (err) { setFout(foutTekst(err.error)); setLaden(false); return; }
-    const [editions, days, shifts, profiles, aanmeldingen, toewijzingen, aanbod, meldingen, concept] =
+    const [editions, days, shifts, profiles, aanmeldingen, toewijzingen, aanbod, meldingen, concept, opmerkingen] =
       res.map((r) => r.data || []);
     setFout(null);
-    setDb({ editions, days, shifts, profiles, aanmeldingen, toewijzingen, aanbod, meldingen, concept });
+    setDb({ editions, days, shifts, profiles, aanmeldingen, toewijzingen, aanbod, meldingen, concept, opmerkingen });
     setLaden(false);
   }, [profiel, isAdmin]);
 
@@ -68,12 +69,14 @@ export function useRooster(profiel) {
     const shiftVan = new Map(db.shifts.map((s) => [s.id, s]));
     const shiftsPerDag = groepeer(
       [...db.shifts].sort((a, b) => startMinuten(a) - startMinuten(b)), "day_id");
+    const opm = new Map(db.opmerkingen.map((o) => [`${o.edition_id}:${o.profile_id}`, o.tekst]));
     return {
       dagVan, editieVan, persoon, shiftVan, shiftsPerDag,
       aanmPerShift: groepeer(db.aanmeldingen, "shift_id"),
       toewPerShift: groepeer(db.toewijzingen, "shift_id"),
       conceptPerShift: groepeer(db.concept, "shift_id"),
       aanbodPerToew: groepeer(db.aanbod, "toewijzing_id"),
+      opmerking: (editieId, profielId) => opm.get(`${editieId}:${profielId}`) || "",
       naam: (id) => persoon.get(id)?.naam || "Onbekend",
       datumVan: (s) => dagVan.get(s.day_id)?.datum || "",
       editieVanShift: (s) => editieVan.get(dagVan.get(s.day_id)?.edition_id) || null,
