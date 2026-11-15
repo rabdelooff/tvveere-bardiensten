@@ -87,6 +87,9 @@ Gmail staat ongeveer 500 mails per dag toe; ruim voldoende.
 | Magic Link | `supabase/email/magic-link.html` | Inloggen bij Bardiensten TV Veere |
 | Confirm signup | `supabase/email/bevestig-aanmelding.html` | Welkom bij Bardiensten TV Veere |
 
+De mails tonen het logo van de vereniging. Dat wordt geladen vanaf de app zelf (`/logo.png`),
+dus de **Site URL** bij stap a moet kloppen.
+
 Beide mails bevatten een knop én een code. De code is nodig voor wie de app op een iPhone heeft
 geïnstalleerd: de knop opent daar Safari in plaats van de app.
 

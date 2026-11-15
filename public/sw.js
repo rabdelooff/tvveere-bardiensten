@@ -11,7 +11,7 @@ self.addEventListener("push", (e) => {
   e.waitUntil(self.registration.showNotification(d.titel || "Bardiensten TV Veere", {
     body: d.tekst || "",
     icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    badge: "/badge-96.png",
     tag: stapel ? "aanmeldingen" : undefined,
     renotify: stapel ? true : undefined,
     data: { url: d.url || "/" },
