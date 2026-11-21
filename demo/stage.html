@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><title>demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { overflow: hidden; background: #2A3894; font-family: Inter, system-ui, sans-serif; color: #fff; }
+  #app { position: absolute; border: 0; background: #FBF5E4; }
+  #cap { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; }
+  #cap span { transition: opacity .22s; font-weight: 600; line-height: 1.3; text-wrap: balance; }
+  #cap b { color: #FFB27D; font-weight: 700; }
+  #cap small { display: block; font-size: .62em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #FFB27D; margin-bottom: .25em; }
+  body.phone { width: 450px; height: 800px; position: relative; } body.desk { width: 1280px; height: 720px; position: relative; }
+  body.phone #cap { left: 0; right: 0; top: 0; height: 116px; padding: 8px 18px 6px; }
+  body.phone #cap span { font-size: 19px; }
+  body.phone #app { left: 16px; top: 116px; width: 418px; height: 668px; border-radius: 22px; box-shadow: 0 0 0 3px #1F2A75, 0 10px 30px rgba(0,0,0,.35); }
+  body.desk #cap { left: 0; right: 0; bottom: 0; height: 84px; padding: 8px 60px; }
+  body.desk #cap span { font-size: 23px; }
+  body.desk #app { left: 0; top: 0; width: 1280px; height: 636px; }
+  #cur { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 5; opacity: 0;
+    transition: transform .55s cubic-bezier(.3,.1,.2,1), opacity .3s; }
+  body.phone #cur i { display: block; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%;
+    background: rgba(238,106,30,.5); border: 2.5px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); transition: transform .12s; }
+  body.desk #cur i { display: block; width: 26px; height: 26px; transition: transform .12s; transform-origin: 2px 2px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.7-7.8L21 10.5z" fill="%23191C2E" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>') no-repeat; }
+  #cur.druk i { transform: scale(.72); }
+  #ring { position: absolute; left: 0; top: 0; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
+    border: 3px solid #EE6A1E; pointer-events: none; z-index: 4; opacity: 0; }
+  #ring.gaan { animation: ring .5s ease-out; }
+  @keyframes ring { from { opacity: .9; scale: .3; } to { opacity: 0; scale: 1.2; } }
+  #titel { position: absolute; inset: 0; z-index: 10; background: #2A3894; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 14px; padding: 0 9%; transition: opacity .45s; }
+  #titel.weg { opacity: 0; pointer-events: none; }
+  #titel .eyebrow { font-weight: 700; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: #FFB27D; margin-top: 10px; }
+  #titel h1 { font-family: 'Archivo Black', 'Arial Black', Inter, sans-serif; font-weight: 900; text-transform: uppercase; line-height: 1.08; }
+  #titel p { font-size: 19px; line-height: 1.4; font-weight: 500; opacity: .92; white-space: pre-line; }
+  body.phone #titel h1 { font-size: 40px; } body.desk #titel h1 { font-size: 58px; }
+  body.desk #titel p { font-size: 24px; }
+  #skip { position: absolute; inset: 0; z-index: 8; background: rgba(31,42,117,.93); display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 0 12%; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .35s; line-height: 1.3; }
+  #skip.aan { opacity: 1; }
+  body.phone #skip { font-size: 24px; } body.desk #skip { font-size: 34px; }
+  #skip small { display: block; font-size: .55em; letter-spacing: .14em; text-transform: uppercase; color: #FFB27D; margin-bottom: .5em; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&display=swap">
+</head>
+<body>
+<iframe id="app" name="app"></iframe>
+<div id="cap"><span></span></div>
+<div id="ring"></div><div id="cur"><i></i></div>
+<div id="skip"><div></div></div>
+<div id="titel"><svg width="92" height="92" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#fff"/><circle cx="32" cy="32" r="19" fill="#2A3894"/><path d="M21 16.5c9 8 9 23 0 31M43 16.5c-9 8-9 23 0 31" fill="none" stroke="#EE6A1E" stroke-width="2.6" stroke-linecap="round"/></svg>
+  <div class="eyebrow"></div><h1></h1><p></p></div>
+<script>
+  const q = new URLSearchParams(location.search), $ = (s) => document.querySelector(s);
+  document.body.className = q.get("vorm"); document.documentElement.style.zoom = q.get("zoom") || 1;
+  $("#app").src = q.get("app");
+  let cx = 0, cy = 0;
+  window.stage = {
+    titel(eyebrow, h1, p) { $("#titel .eyebrow").textContent = eyebrow; $("#titel h1").textContent = h1; $("#titel p").textContent = p; $("#titel").classList.remove("weg"); },
+    titelWeg() { $("#titel").classList.add("weg"); },
+    async cap(html) { const s = $("#cap span"); s.style.opacity = 0; await new Promise((r) => setTimeout(r, 220)); s.innerHTML = html; s.style.opacity = 1; },
+    skip(html) { $("#skip div").innerHTML = html; $("#skip").classList.add("aan"); },
+    skipWeg() { $("#skip").classList.remove("aan"); },
+    naar(x, y) { cx = x; cy = y; const c = $("#cur"); c.style.opacity = 1; c.style.transform = `translate(${x}px, ${y}px)`; },
+    druk() { const c = $("#cur"), r = $("#ring"); c.classList.add("druk"); r.style.transform = `translate(${cx}px, ${cy}px)`;
+      r.classList.remove("gaan"); void r.offsetWidth; r.classList.add("gaan"); setTimeout(() => c.classList.remove("druk"), 160); },
+    curWeg() { $("#cur").style.opacity = 0; },
+  };
+</script>
+</body></html>
